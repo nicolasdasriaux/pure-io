@@ -3,7 +3,7 @@ package pureio
 import java.io.IOException
 
 import scalaz.zio.console._
-import scalaz.zio.{App, IO, Schedule}
+import scalaz.zio.{App, IO}
 
 import scala.util.{Random, Try}
 
@@ -34,7 +34,9 @@ object PureIoApp extends App {
           case 5 => IO.unit
         }
       } yield number
-    }.repeat(Schedule.doUntil(_ == 5)).void
+    }.flatMap { number =>
+      if (number == 5) IO.unit else menu
+    }
   }
 
   def helloWorld: IO[IOException, Unit] = {
