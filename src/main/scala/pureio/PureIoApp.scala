@@ -26,16 +26,16 @@ object PureIoApp extends App {
         _ <- putStrLn("5) Quit")
         number <- getNumber(1, 5)
 
-        _ <- number match {
-          case 1 => helloWorld
-          case 2 => guessNumber
-          case 3 => countdown(50)
-          case 4 => printFibonacci(6)
-          case 5 => IO.unit
+        exit <- number match {
+          case 1 => helloWorld *> IO.now(false)
+          case 2 => guessNumber *> IO.now(false)
+          case 3 => countdown(50) *> IO.now(false)
+          case 4 => fibonacciCalculator *> IO.now(false)
+          case 5 => IO.now(true)
         }
-      } yield number
-    }.flatMap { number =>
-      if (number == 5) IO.unit else menu
+      } yield exit
+    }.flatMap { exit =>
+      if (exit) IO.unit else menu
     }
   }
 
@@ -84,8 +84,9 @@ object PureIoApp extends App {
     }
   }
 
-  def printFibonacci(n: BigInt): IO[Nothing, Unit] = {
+  def fibonacciCalculator: IO[IOException, Unit] = {
     for {
+      n <- getNumber(1, 10)
       result <- fibonacci(n)
       _ <- putStrLn(s"fibonacci($n) = $result")
     } yield ()
