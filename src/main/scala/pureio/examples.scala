@@ -4,8 +4,6 @@ package pureio {
 
   import scala.util.Random
 
-  case class Point(x: Int, y: Int)
-
   object RTS extends RTS
 
   package mapflatmap {
@@ -37,6 +35,7 @@ package pureio {
     }
 
     object rest {
+      case class Point(x: Int, y: Int)
       def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
 
       val randomPoint: IO[Nothing, Point] =
@@ -138,6 +137,7 @@ package pureio {
   package forcomprehension {
     package types {
       object Main {
+        case class Point(x: Int, y: Int)
         def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
 
         def printRandomPoint: IO[Nothing, Unit] = {
@@ -160,6 +160,7 @@ package pureio {
 
     package scopes {
       object Main {
+        case class Point(x: Int, y: Int)
         def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
 
         def printRandomPoint: IO[Nothing, Unit] = {
@@ -182,6 +183,7 @@ package pureio {
 
     package nesting {
       object Main {
+        case class Point(x: Int, y: Int)
         def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
 
         def printRandomPoint: IO[Nothing, Unit] = {

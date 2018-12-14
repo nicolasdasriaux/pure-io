@@ -76,3 +76,24 @@ class HelloWorldApp extends App {
   }
 }
 ```
+
+---
+
+# Types in `for` Comprehension
+
+```scala
+```
+
+---
+
+# Scopes in `for` Comprehension
+
+```scala
+```
+
+---
+
+# Implicit Nesting in `for` Comprehesion
+
+```scala
+```
