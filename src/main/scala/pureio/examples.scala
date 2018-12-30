@@ -5,7 +5,7 @@ import scalaz.zio.{IO, RTS}
 import scala.util.Random
 
 package pureio {
-  import pureio.common._
+  import pureio.sync._
   object RTS extends RTS
 
   package basic {
@@ -31,19 +31,78 @@ package pureio {
     }
   }
 
-  object common {
-    def randomBetween(min: Int, max: Int): IO[Nothing, Int] =
+  object sync {
+    def randomBetween(min: Int, max: Int): IO[Nothing, Int] = {
+      // Side-effecting code updates the state of a random generator,
+      // and returns a random number (Int).
+      // It can never fail (Nothing).
       IO.sync(Random.nextInt(max - min) + min)
+    }
 
-    def putStrLn(line: String): IO[Nothing, Unit] =
-      IO.sync(Console.println(line))
+    def putStrLn(line: String): IO[Nothing, Unit] = {
+      // Side-defecting code prints something,
+      // and returns void (Unit).
+      // It can never fail (Nothing).
+      IO.sync(scala.Console.println(line))
+    }
 
-    def getStrLn: IO[IOException, String] =
+    def getStrLn: IO[IOException, String] = {
+      // Side-effecting code reads from keyboard until a line is available,
+      // and returns the line (String).
+      // It might throw an IOException. IO catches exception,
+      // and translates it into a failure containing the error (IOException).
+      // IOException is neutralized, it is NOT propagated but just used as a value.
       IO.syncCatch(scala.io.StdIn.readLine()) {
         case e: IOException => e
       }
+    }
 
     case class Point(x: Int, y: Int)
+  }
+
+  package async {
+    import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
+
+    package non_interruptible {
+      object Calculator {
+        private lazy val executorService = Executors.newScheduledThreadPool(5)
+
+        def add(a: Int, b: Int): IO[Nothing, Int] = {
+          IO.async { (callback: IO[Nothing, Int] => Unit) =>
+            val notifyCompletion: Runnable = { () =>
+              callback(IO.point(a + b))
+            }
+
+            executorService.schedule(notifyCompletion, 5, TimeUnit.SECONDS)
+          }
+        }
+      }
+    }
+
+    package interruptible {
+      import scalaz.zio.Canceler
+
+      object Calculator {
+        private lazy val executorService = Executors.newScheduledThreadPool(5)
+
+        def add(a: Int, b: Int): IO[Nothing, Int] = {
+          IO.asyncInterrupt { (callback: IO[Nothing, Int] => Unit) =>
+            val notifyCompletion: Runnable = { () =>
+              callback(IO.point(a + b))
+            }
+
+            val eventualResult = executorService.schedule(notifyCompletion, 5, TimeUnit.SECONDS)
+            val canceler: Canceler = IO.sync(eventualResult.cancel(false))
+            Left(canceler)
+          }
+        }
+      }
+
+      object Main {
+        def main(args: Array[String]): Unit = {
+        }
+      }
+    }
   }
 
   package map_flatmap {
