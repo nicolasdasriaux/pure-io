@@ -1,20 +1,21 @@
 package pureio
 
-import java.io.IOException
+import scalaz.zio.{IO, RTS}
 
-import scalaz.zio.console._
-import scalaz.zio.{App, IO}
+object HelloWorldApp {
+  object MinimalisticApp {
+    // Wraps synchronous (blocking) side-effecting code in an IO
+    val helloWorld: IO[Nothing, Unit] = IO.sync(Console.println("Hello World!"))
+    // Nothing is printed after this line has run.
+    // Somehow equivalent to IO.sync(() => Console.println("Hello World!"))
+    // So the IO holds a lambda (() => Console.println("Hello World!")) but do not run it.
 
-class HelloWorldApp extends App {
-  def run(args: List[String]): IO[Nothing, ExitStatus] = {
-    helloWorld.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
-  }
+    // Creates a Runtime system as a single instance named RTS
+    object RTS extends RTS
 
-  def helloWorld: IO[IOException, Unit] = {
-    for  {
-      _ <- putStrLn("What's you name?")
-      name <- getStrLn
-      _ <- putStrLn(s"Hello $name!")
-    } yield ()
+    def main(args: Array[String]): Unit = {
+      // Run the IO with the RTS. Prints "Hello World!".
+      RTS.unsafeRun(helloWorld) // Comment this line and nothing will ever print
+    }
   }
 }

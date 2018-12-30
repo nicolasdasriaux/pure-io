@@ -5,7 +5,6 @@ import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
 import scalaz.zio.ExitResult.Cause.Interruption
-import scalaz.zio.ExitResult.Succeeded
 import scalaz.zio._
 import scalaz.zio.console.putStrLn
 import scalaz.zio.duration._
@@ -56,12 +55,12 @@ object NameService {
     task.onTermination(_ => putStrLn(s"Terminated $id")).race(ticker)
   }
 
-  def getName2(id: Int): IO[Nothing, String] = IO.async0[Nothing, String] { callback =>
+  def getName2(id: Int): IO[Nothing, String] = IO.asyncInterrupt[Nothing, String] { (callback: IO[Nothing, String] => Unit) =>
     println(s"Running $id")
 
     val notifyCompletion: Runnable = { () =>
       println(s"Completing $id")
-      callback(Succeeded(s"Name $id"))
+      callback(IO.now(s"Name $id"))
     }
 
     val eventualResult: ScheduledFuture[_] = executorService.schedule(notifyCompletion, 5, TimeUnit.SECONDS)
@@ -71,7 +70,7 @@ object NameService {
       eventualResult.cancel(false)
     }
 
-    Async.maybeLater(canceler)
+    Left(canceler)
   }
 }
 
