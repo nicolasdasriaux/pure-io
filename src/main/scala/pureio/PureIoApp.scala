@@ -15,7 +15,7 @@ object PureIoApp extends App {
   def parseInt(s: String): Option[Int] = Try(s.toInt).toOption
   def randomInt: IO[Nothing, Int] = IO.sync(Random.nextInt(10) + 1)
 
-  def menu: IO[IOException, Unit] = {
+  val menu: IO[IOException, Unit] = {
     {
       for {
         _ <- putStrLn("Menu")
@@ -27,10 +27,10 @@ object PureIoApp extends App {
         number <- getNumber(1, 5)
 
         exit <- number match {
-          case 1 => helloWorld *> IO.now(false)
-          case 2 => guessNumber *> IO.now(false)
-          case 3 => countdown(50) *> IO.now(false)
-          case 4 => fibonacciCalculator *> IO.now(false)
+          case 1 => helloWorld.const(false)
+          case 2 => guessNumber.const(false)
+          case 3 => countdown(50).const(false)
+          case 4 => fibonacciCalculator.const(false)
           case 5 => IO.now(true)
         }
       } yield exit
@@ -39,7 +39,7 @@ object PureIoApp extends App {
     }
   }
 
-  def helloWorld: IO[IOException, Unit] = {
+  val helloWorld: IO[IOException, Unit] = {
     for {
       _ <- putStrLn("What's your name?")
       name <- getStrLn
@@ -47,7 +47,7 @@ object PureIoApp extends App {
     } yield ()
   }
 
-  def guessNumber: IO[IOException, Unit] = {
+  val guessNumber: IO[IOException, Unit] = {
     for {
       number <- randomInt
       _ <- putStrLn("Guess a number between 1 and 10")
@@ -70,7 +70,7 @@ object PureIoApp extends App {
         s <- getStrLn
       } yield parseInt(s)
     }.flatMap {
-      case Some(number) if (1 <= number && number <= 10) => IO.now(number)
+      case Some(number) if 1 <= number && number <= 10 => IO.now(number)
       case Some(number) => putStrLn(s"Number should be between $min and $max") *> getNumber(min, max)
       case None => putStrLn("Not a number") *> getNumber(min, max)
     }
@@ -84,7 +84,7 @@ object PureIoApp extends App {
     }
   }
 
-  def fibonacciCalculator: IO[IOException, Unit] = {
+  val fibonacciCalculator: IO[IOException, Unit] = {
     for {
       n <- getNumber(1, 10)
       result <- fibonacci(n)

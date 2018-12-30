@@ -17,7 +17,7 @@ object AsyncIoApp extends App {
     async.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
   }
 
-  def async: IO[IOException, Unit] = {
+  val async: IO[IOException, Unit] = {
     val id = 1
     val ids = 1 to 10
     val getNames = IO.parTraverse(ids) { id => NameService.getName(id) }

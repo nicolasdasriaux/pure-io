@@ -7,18 +7,6 @@ slidenumbers: true
 
 ---
 
-# Exceptions are Impure
-
----
-
-# Mutability is Impure
-
----
-
-# Traditional IOs are Impure
-
----
-
 # `IO[E, A]`
 
 ```scala
@@ -26,10 +14,10 @@ IO[E, A] // E = Error, A = Result
 ```
 
 * An immutable object that **describes** an **action performing side-effects**
-* To actually do something, it must be interpreted by a runtime system
-* When **run**, it will either
+* An `IO` does nothing, it's just a value holding a program
+* It must be interpreted by a **runtime system** or **RTS**
+* Only when **run** by the RTS, it will either
     - fail with an **error** of type **`E`**,
-    - or run forever,
     - or eventually produce a **result** of type **`A`**.
 
 ---
@@ -37,12 +25,34 @@ IO[E, A] // E = Error, A = Result
 # `IO` is Pure
 
 
-* `IO` values are **pure** :innocent:
-* They can be **combined** to form complex programs
-* They can be **inlined** or **extracted** without changing the meaning of the code
-* A **program** can be represented as a **single `IO` value**
-* Program `IO` value can eventually be run in the `main` method
-* This would be the only **impure** :imp: part of the code  
+* `IO` values are **pure** :innocent:.
+* Can be **combined** to form complex programs
+* Can be **inlined** or **extracted** without changing the meaning of the code
+* A full **program** can be represented as a **single `IO` value**
+* Can eventually be run in the `main` method
+* Only **impure** :imp: point of the code  
+
+---
+
+# First `IO` Application
+
+```scala
+object MinimalisticApp {
+  // Wraps synchronous (blocking) side-effecting code in an IO
+  val helloWorld: IO[Nothing, Unit] = IO.sync(Console.println("Hello World!"))
+  // Nothing is printed after this line has run.
+  // Somehow equivalent to IO.sync(() => Console.println("Hello World!"))
+  // So the IO holds a lambda (() => Console.println("Hello World!")) but do not run it.
+
+  // Creates a Runtime system as a single instance named RTS
+  object RTS extends RTS
+
+  def main(args: Array[String]): Unit = {
+    // Run the IO with the RTS
+    RTS.unsafeRun(helloWorld) // Comment this line and nothing will ever print
+  }
+}
+```
 
 ---
 
@@ -79,21 +89,165 @@ class HelloWorldApp extends App {
 
 ---
 
-# Types in `for` Comprehension
+# Combining `IO`s
+
+---
+
+# Basic `IO`s
 
 ```scala
+val success: IO[Nothing, Int] = IO.point(42)
+// Will never fail
+// Will always succeed with result 42
+
+val failure: IO[String, Nothing] = IO.fail("Failed")
+// Will always fail with error "Failed"
+// will never succeed
+
+val exceptionFailure: IO[IllegalStateException, Nothing] =
+  IO.fail(new IllegalStateException("Failure"))
+// Error can be any type
+// Error can then be an exception (but just as a value, never thrown!)
 ```
 
 ---
 
-# Scopes in `for` Comprehension
+# Transforming `IO` (`map`)
 
 ```scala
+def randomBetween(min: Int, max: Int): IO[Nothing, Int] =
+  IO.sync(Random.nextInt(max - min) + min)
+  
+val randomLetter: IO[Nothing, Char] =
+  randomBetween('A', 'Z').map { i /* Int */ =>
+    i.toChar /* Char */
+  }
 ```
 
 ---
 
-# Implicit Nesting in `for` Comprehesion
+# Sequencing `IO`s (`flatMap`)
 
 ```scala
+def putStrLn(line: String): IO[Nothing, Unit] =
+  IO.sync(Console.println(line))
+
+val printRolledDiceWRONG: IO[Nothing, IO[Nothing, Unit]] = // Oops! Wrong type!
+  randomBetween(1, 6).map { dice /* Int */ =>
+    putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
+  }
+
+val printRolledDice: IO[Nothing, Unit] =
+  randomBetween(1, 6).flatMap { dice /* Int */ =>
+    putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
+  }
 ```
+
+---
+
+# Too Much Nesting
+
+```scala
+val welcomeNewPlayer: IO[Nothing, Unit] =
+  putStrLn("What's your name?").flatMap { _ /* Unit */ =>
+    getStrLn.catchAll(_ => IO.point("")).flatMap { name /* String */ =>
+      randomBetween(0, 20).flatMap { x /* Int */ =>
+        randomBetween(0, 20).flatMap { y /* Int */ =>
+          randomBetween(0, 20).flatMap { z /* Int */ =>
+            putStrLn(s"Welcome $name, you start at coordinates($x, $y, $z).")
+          }
+        }
+      }
+    }
+  }
+```
+---
+
+# Flatten Them All!
+
+
+---
+
+# Anatomy of `for` Comprehension
+
+---
+
+# `for` Comprehension **Types**
+
+```scala
+val printRandomPoint: IO[Nothing, Unit] = {
+  for {
+    x     /* Int   */ <- randomBetween(0, 10)            /* IO[Nothing, Int]  */
+    _     /* Unit  */ <- putStrLn(s"x=$x")               /* IO[Nothing, Unit] */
+    y     /* Int   */ <- randomBetween(0, 10)            /* IO[Nothing, Int]  */
+    _     /* Unit  */ <- putStrLn(s"y=$y")               /* IO[Nothing, Unit] */
+    point /* Point */ =  Point(x, y)                     /* Point             */
+    _     /* Unit  */ <- putStrLn(s"point.x=${point.x}") /* IO[Nothing, Unit] */
+    _     /* Unit  */ <- putStrLn(s"point.y=${point.y}") /* IO[Nothing, Unit] */
+  } yield () /* Unit */
+} /* IO[Nothing, Unit] */
+```
+
+---
+
+# `for` Comprehension **Type Rules**
+
+|            | `val` type | operator | expression type |
+|------------|------------|----------|-----------------|
+| generator  | `A`        | `<-`     | `IO[E, A]`      |
+| assignment | `B`        | `=`      | `B`             |
+
+|            | `for` comprehension type | `yield` expression type |
+|------------|------------------------- |-------------------------|
+| production | `IO[E, R]`               | `R`                     |
+
+* Combines **only `DBIO[E, T]`**, **no mix** with `Option[T]`, `Future[T]`, `Seq[T]`...
+* But it could be **only** `Option[T]`, or **only** `Future[T]`, or **only** `Seq[T]`...
+
+---
+
+# `for` Comprehension **Scopes**
+
+```scala
+val printRandomPoint: IO[Nothing, Unit] = {
+  for {
+    x <- randomBetween(0, 10)            /*  x                */
+    _ <- putStrLn(s"x=$x")               /*  O                */
+    y <- randomBetween(0, 10)            /*  |    y           */
+    _ <- putStrLn(s"y=$y")               /*  |    O           */
+    point = Point(x, y)                  /*  O    O    point  */
+    _ <- putStrLn(s"point.x=${point.x}") /*  |    |    O      */
+    _ <- putStrLn(s"point.y=${point.y}") /*  |    |    O      */
+  } yield ()                             /*  |    |    |      */
+}
+```
+
+---
+
+# `for` Comprehension **Implicit Nesting**
+
+```scala
+val printRandomPoint: IO[Nothing, Unit] = {
+  for {
+       x <- randomBetween(0, 10)
+    /* | */ _ <- putStrLn(s"x=$x")
+    /* |    | */ y <- randomBetween(0, 10)
+    /* |    |    | */ _ <- putStrLn(s"y=$y")
+    /* |    |    |    | */ point = Point(x, y)
+    /* |    |    |    |    | */ _ <- putStrLn(s"point.x=${point.x}")
+    /* |    |    |    |    |    | */ _ <- putStrLn(s"point.y=${point.y}")
+  } /* |    |    |    |    |    |    | */ yield ()
+}
+```
+
+---
+
+# Exceptions are Impure
+
+---
+
+# Mutability is Impure
+
+---
+
+# Traditional IOs are Impure

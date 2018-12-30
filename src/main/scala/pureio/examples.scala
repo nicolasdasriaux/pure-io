@@ -1,16 +1,58 @@
+import java.io.IOException
+
+import scalaz.zio.{IO, RTS}
+
+import scala.util.Random
+
 package pureio {
-  import scalaz.zio.console._
-  import scalaz.zio.{IO, RTS}
-
-  import scala.util.Random
-
+  import pureio.common._
   object RTS extends RTS
 
-  package mapflatmap {
+  package basic {
+    object Main {
+      val success: IO[Nothing, Int] = IO.point(42)
+      // Will never fail
+      // Will always succeed with result 42
+
+      val failure: IO[String, Nothing] = IO.fail("Failed")
+      // Will always fail with error "Failed"
+      // will never succeed
+
+      val exceptionFailure: IO[IllegalStateException, Nothing] =
+        IO.fail(new IllegalStateException("Failure"))
+      // Error can be any type
+      // Error can then be an exception (but just as a value, never thrown!)
+
+      def main(args: Array[String]): Unit = {
+        println(RTS.unsafeRun(success))
+        println(RTS.unsafeRun(failure))
+        println(RTS.unsafeRun(exceptionFailure))
+      }
+    }
+  }
+
+  object common {
+    def randomBetween(min: Int, max: Int): IO[Nothing, Int] =
+      IO.sync(Random.nextInt(max - min) + min)
+
+    def putStrLn(line: String): IO[Nothing, Unit] =
+      IO.sync(Console.println(line))
+
+    def getStrLn: IO[IOException, String] =
+      IO.syncCatch(scala.io.StdIn.readLine()) {
+        case e: IOException => e
+      }
+
+    case class Point(x: Int, y: Int)
+  }
+
+  package map_flatmap {
     package map {
       object Main {
-        def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
-        val randomLetter: IO[Nothing, Char] = randomBetween('A', 'Z').map(_.toChar)
+        val randomLetter: IO[Nothing, Char] =
+          randomBetween('A', 'Z').map { i /* Int */ =>
+            i.toChar /* Char */
+          }
 
         def main(args: Array[String]): Unit = {
           println(RTS.unsafeRun(randomLetter))
@@ -20,13 +62,15 @@ package pureio {
 
     package flatmap {
       object Main {
-        def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
-
-        val printRolledDice_WRONG: IO[Nothing, IO[Nothing, Unit]] = // Oops! Wrong type!
-          randomBetween(1, 6).map(dice => putStrLn(s"Dice shows $dice"))
+        val printRolledDiceWRONG: IO[Nothing, IO[Nothing, Unit]] = // Oops! Wrong type!
+          randomBetween(1, 6).map { dice /* Int */ =>
+            putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
+          }
 
         val printRolledDice: IO[Nothing, Unit] =
-          randomBetween(1, 6).flatMap(dice => putStrLn(s"Dice shows $dice"))
+          randomBetween(1, 6).flatMap { dice /* Int */ =>
+            putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
+          }
 
         def main(args: Array[String]): Unit = {
           RTS.unsafeRun(printRolledDice)
@@ -34,10 +78,48 @@ package pureio {
       }
     }
 
-    object rest {
-      case class Point(x: Int, y: Int)
-      def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
+    package too_many_flatmaps {
+      package map_flatmap {
+        object Main {
+          val welcomeNewPlayer: IO[Nothing, Unit] =
+            putStrLn("What's your name?").flatMap { _ /* Unit */ =>
+              getStrLn.catchAll(_ => IO.point("")).flatMap { name /* String */ =>
+                randomBetween(0, 20).flatMap { x /* Int */ =>
+                  randomBetween(0, 20).flatMap { y /* Int */ =>
+                    randomBetween(0, 20).flatMap { z /* Int */ =>
+                      putStrLn(s"Welcome $name, you start at coordinates($x, $y, $z).")
+                    }
+                  }
+                }
+              }
+            }
 
+          def main(args: Array[String]): Unit = {
+            RTS.unsafeRun(welcomeNewPlayer)
+          }
+        }
+      }
+
+      package for_comprehension {
+        object Main {
+          val welcomeNewPlayer: IO[Nothing, Unit] =
+            for {
+              _ <- putStrLn("What's your name?")
+              name <- getStrLn.catchAll(_ => IO.point(""))
+              x <- randomBetween(0, 20)
+              y <- randomBetween(0, 20)
+              z <- randomBetween(0, 20)
+              _ <- putStrLn(s"Welcome $name, you start at coordinates($x, $y, $z).")
+            } yield ()
+
+          def main(args: Array[String]): Unit = {
+            RTS.unsafeRun(welcomeNewPlayer)
+          }
+        }
+      }
+    }
+
+    object rest {
       val randomPoint: IO[Nothing, Point] =
         randomBetween(0, 20).flatMap { x =>
           randomBetween(0, 20).map { y =>
@@ -63,84 +145,49 @@ package pureio {
     }
   }
 
-  package purity {
-    package io {
-      object Main {
-        val printHello: IO[Nothing, Unit] = IO.sync(println("Hello!"))
-        // Equivalent to IO.sync(() => println("Hello!"))
-        // Do not compile
-
-        def main(args: Array[String]): Unit = {
-          println("Start")
-          RTS.unsafeRun(printHello)
-          println("End")
-        }
-      }
-    }
-
-    package stateful {
-      object Main {
-        val randomBetween1And10000: IO[Nothing, Int] = IO.sync(Random.nextInt(10000) + 1)
-        // Equivalent IO.sync(() => Random.nextInt(1000) + 1)
-        // Do not compile
-
-        def main(args: Array[String]): Unit = {
-          println("Start")
-          println(RTS.unsafeRun(randomBetween1And10000))
-          println(RTS.unsafeRun(randomBetween1And10000))
-          println("End")
-        }
-      }
-    }
-  }
-
   package referentialtransparency {
     package inlined {
       object Main {
-        def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
-
-        def program: IO[Nothing, Unit] = {
+        def addTwoRandomNumbers: IO[Nothing, Unit] = {
           for {
             r1 <- randomBetween(1, 25)
             r2 <- randomBetween(1, 25)
-            _ <- putStr(s"$r1 + $r2 = ${r1 + r2}")
+            _ <- putStrLn(s"$r1 + $r2 = ${r1 + r2}")
           } yield ()
         }
 
         def main(args: Array[String]): Unit = {
-          RTS.unsafeRun(program)
+          RTS.unsafeRun(addTwoRandomNumbers)
         }
       }
     }
 
     package extracted {
       object Main {
-        def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
-
-        def program: IO[Nothing, Unit] = {
-          val randomBetween1To25 = randomBetween(1, 25)
+        def addTwoRandomNumbers: IO[Nothing, Unit] = {
+          val randomBetween1To25: IO[Nothing, Int] = randomBetween(1, 25)
 
           for {
             r1 <- randomBetween1To25
             r2 <- randomBetween1To25
-            _ <- putStr(s"$r1 + $r2 = ${r1 + r2}")
+            _ <- putStrLn(s"$r1 + $r2 = ${r1 + r2}")
           } yield ()
         }
 
         def main(args: Array[String]): Unit = {
-          RTS.unsafeRun(program)
+          RTS.unsafeRun(addTwoRandomNumbers)
         }
       }
     }
   }
 
-  package forcomprehension {
+  package for_comprehension_anatomy {
     package types {
       object Main {
         case class Point(x: Int, y: Int)
         def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
 
-        def printRandomPoint: IO[Nothing, Unit] = {
+        val printRandomPoint: IO[Nothing, Unit] = {
           for {
             x     /* Int   */ <- randomBetween(0, 10)            /* IO[Nothing, Int]  */
             _     /* Unit  */ <- putStrLn(s"x=$x")               /* IO[Nothing, Unit] */
@@ -160,19 +207,18 @@ package pureio {
 
     package scopes {
       object Main {
-        case class Point(x: Int, y: Int)
         def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
 
-        def printRandomPoint: IO[Nothing, Unit] = {
-          for {                                  /*  x    y    point  */
-            x <- randomBetween(0, 10)            /*  -    -    -      */
-            _ <- putStrLn(s"x=$x")               /*  o    -    -      */
-            y <- randomBetween(0, 10)            /*  o    -    -      */
-            _ <- putStrLn(s"y=$y")               /*  o    o    -      */
-            point = Point(x, y)                  /*  o    o    -      */
-            _ <- putStrLn(s"point.x=${point.x}") /*  o    o    o      */
-            _ <- putStrLn(s"point.y=${point.y}") /*  o    o    o      */
-          } yield ()                             /*  o    o    o      */
+        val printRandomPoint: IO[Nothing, Unit] = {
+          for {
+            x <- randomBetween(0, 10)            /*  x                */
+            _ <- putStrLn(s"x=$x")               /*  O                */
+            y <- randomBetween(0, 10)            /*  |    y           */
+            _ <- putStrLn(s"y=$y")               /*  |    O           */
+            point = Point(x, y)                  /*  O    O    point  */
+            _ <- putStrLn(s"point.x=${point.x}") /*  |    |    O      */
+            _ <- putStrLn(s"point.y=${point.y}") /*  |    |    O      */
+          } yield ()                             /*  |    |    |      */
         }
 
         def main(args: Array[String]): Unit = {
@@ -181,12 +227,9 @@ package pureio {
       }
     }
 
-    package nesting {
+    package implicit_nesting {
       object Main {
-        case class Point(x: Int, y: Int)
-        def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
-
-        def printRandomPoint: IO[Nothing, Unit] = {
+        val printRandomPoint: IO[Nothing, Unit] = {
           for {
                x <- randomBetween(0, 10)
             /* | */ _ <- putStrLn(s"x=$x")
@@ -200,6 +243,40 @@ package pureio {
 
         def main(args: Array[String]): Unit = {
           RTS.unsafeRun(printRandomPoint)
+        }
+      }
+    }
+  }
+
+  package purity {
+    package io {
+
+      object Main {
+        val printHello: IO[Nothing, Unit] = IO.sync(println("Hello!"))
+        // Equivalent to IO.sync(() => println("Hello!"))
+        // Do not compile
+
+        def main(args: Array[String]): Unit = {
+          println("Start")
+          RTS.unsafeRun(printHello)
+          println("End")
+        }
+      }
+
+    }
+
+    package stateful {
+
+      object Main {
+        val randomBetween1And10000: IO[Nothing, Int] = IO.sync(Random.nextInt(10000) + 1)
+        // Equivalent IO.sync(() => Random.nextInt(1000) + 1)
+        // Do not compile
+
+        def main(args: Array[String]): Unit = {
+          println("Start")
+          println(RTS.unsafeRun(randomBetween1And10000))
+          println(RTS.unsafeRun(randomBetween1And10000))
+          println("End")
         }
       }
     }
