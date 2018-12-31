@@ -74,11 +74,24 @@ val exceptionFailure: IO[IllegalStateException, Nothing] =
 
 ---
 
+# Wrapping in `IO`
+
+--- 
+
 # Wrapping Side-Effecting Code in `IO`
+
+* Wrap a **synchronous** (blocking) side-effecting code
+  - When **non exception-throwing**, use `IO.sync`
+  - When **exception-throwing**, use `IO.syncCatch`, `syncThrowable`, `syncException`
+  - Catches exceptions and wraps them with `IO.fail`
+* Wrap an **asynchronous** (non-blocking) side-effecting code
+  * When **uninterruptible**, use `IO.async`
+  * When **interruptible** , use `IO.asyncInterrupt`
+* Can then combine all kinds of `IO`s seamlessly
 
 ---
 
-# Synchronous, Side-Effecting
+# Synchronous, Non Exception-Throwing
 
 ```scala
 def randomBetween(min: Int, max: Int): IO[Nothing, Int] =
@@ -88,7 +101,7 @@ def randomBetween(min: Int, max: Int): IO[Nothing, Int] =
   IO.sync(Random.nextInt(max - min) + min)
 
 def putStrLn(line: String): IO[Nothing, Unit] =
-  // Side-defecting code prints something,
+  // Side-defecting code prints a line,
   // and returns void (Unit).
   // It can never fail (Nothing).
   IO.sync(scala.Console.println(line))
@@ -96,7 +109,7 @@ def putStrLn(line: String): IO[Nothing, Unit] =
 
 ---
 
-# [fit] Synchronous, Side-Effecting, Exception-Throwing
+# Synchronous, Exception-Throwing
 
 ```scala
 def getStrLn: IO[IOException, String] = {
@@ -113,7 +126,7 @@ def getStrLn: IO[IOException, String] = {
 
 ---
 
-# Asynchronous, Side-Effecting, Uninterruptible
+# Asynchronous, Uninterruptible
 
 ```scala
 object Calculator {
@@ -133,7 +146,7 @@ object Calculator {
 
 ---
 
-# Asynchronous, Side-Effecting, Interruptible
+# Asynchronous, Interruptible
 
 ```scala
 object Calculator {

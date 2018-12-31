@@ -40,7 +40,7 @@ package pureio {
     }
 
     def putStrLn(line: String): IO[Nothing, Unit] = {
-      // Side-defecting code prints something,
+      // Side-defecting code prints a line,
       // and returns void (Unit).
       // It can never fail (Nothing).
       IO.sync(scala.Console.println(line))
@@ -61,7 +61,7 @@ package pureio {
   }
 
   package async {
-    import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
+    import java.util.concurrent.{Executors, TimeUnit}
 
     package non_interruptible {
       object Calculator {
