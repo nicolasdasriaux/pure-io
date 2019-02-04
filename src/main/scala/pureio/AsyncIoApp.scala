@@ -4,7 +4,7 @@ import java.io.IOException
 import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
-import scalaz.zio.ExitResult.Cause.Interruption
+import scalaz.zio.Exit.Cause.Interruption
 import scalaz.zio._
 import scalaz.zio.console.putStrLn
 import scalaz.zio.duration._
@@ -19,19 +19,19 @@ object AsyncIoApp extends App {
   val async: IO[IOException, Unit] = {
     val id = 1
     val ids = 1 to 10
-    val getNames = IO.parTraverse(ids) { id => NameService.getName(id) }
+    val getNames = IO.foreachPar(ids) { id => NameService.getName(id) }
 
     for {
       nameFiber <- NameService.getName(id).fork
       _ <- nameFiber.interrupt.delay(3.second).fork
-      name <- nameFiber.observe.flatMap(exitResult => IO.done(exitResult.fold({ case Interruption => ExitResult.succeeded(None); case cause => ExitResult.failed(cause) }, name => ExitResult.succeeded(Some(name)))))
+      name <- nameFiber.await.flatMap(exitResult => IO.done(exitResult.fold({ case Interruption => Exit.succeed(None); case cause => Exit.fail(cause) }, name => Exit.succeed(Some(name)))))
       _ <- putStrLn(s"Name for $id is $name")
 
       _ <- File.printAllLines(Paths.get("/Users/axa/Development/presentations/pure-io/build.sbt")).race(IO.sleep(5.seconds))
 
       namesFiber <- getNames.fork
       _ <- namesFiber.interrupt.delay(2.seconds).fork
-      names <- namesFiber.observe.flatMap(exitResult => IO.done(exitResult.fold({ case Interruption => ExitResult.succeeded(List.empty); case cause => ExitResult.failed(cause) }, names => ExitResult.succeeded(names))))
+      names <- namesFiber.await.flatMap(exitResult => IO.done(exitResult.fold({ case Interruption => Exit.succeed(List.empty); case cause => Exit.fail(cause) }, names => Exit.succeed(names))))
       _ <- putStrLn(s"names=$names")
     } yield ()
   }
@@ -50,8 +50,9 @@ object NameService {
       putStrLn(s"Started $id") *>
         IO.sleep(4.seconds) *>
         putStrLn(s"Succeeded $id") *>
-        IO.point(s"Name $id")
+        IO.succeedLazy(s"Name $id")
 
+    task.sandbox
     task.onTermination(_ => putStrLn(s"Terminated $id")).race(ticker)
   }
 
@@ -60,7 +61,7 @@ object NameService {
 
     val notifyCompletion: Runnable = { () =>
       println(s"Completing $id")
-      callback(IO.now(s"Name $id"))
+      callback(IO.succeedLazy(s"Name $id"))
     }
 
     val eventualResult: ScheduledFuture[_] = executorService.schedule(notifyCompletion, 5, TimeUnit.SECONDS)

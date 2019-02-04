@@ -3,9 +3,11 @@ package pureio
 import scalaz.zio.{IO, RTS}
 
 object HelloWorldApp {
+
   object MinimalisticApp {
     // Wraps synchronous (blocking) side-effecting code in an IO
     val helloWorld: IO[Nothing, Unit] = IO.sync(Console.println("Hello World!"))
+
     // Nothing is printed after this line has run.
     // Somehow equivalent to IO.sync(() => Console.println("Hello World!"))
     // So the IO holds a lambda (() => Console.println("Hello World!")) but do not run it.
@@ -18,4 +20,5 @@ object HelloWorldApp {
       RTS.unsafeRun(helloWorld) // Comment this line and nothing will ever print
     }
   }
+
 }

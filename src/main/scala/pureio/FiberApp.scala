@@ -32,7 +32,7 @@ object FiberApp extends App {
         .repeat(
           (Schedule.spaced(500.millis) *> Schedule.recurs(5))
             .logOutput(i => queue.offer(i).void)
-            <||> Schedule.point(0).logOutput(i => queue.offer(i).void)
+            andThen Schedule.succeedLazy(0).logOutput(i => queue.offer(i).void)
         )
 
     def take(queue: Queue[Int]) =
@@ -44,10 +44,10 @@ object FiberApp extends App {
       queue <- Queue.bounded[Int](5)
       promise <- Promise.make[Nothing, Int]
       _ <- take(queue).fork
-      _ <- IO.now(10).delay(5.seconds).to(promise).fork
+      _ <- IO.succeed(10).delay(5.seconds).to(promise).fork
       _ <- offer(queue).fork
       _ <- putStrLn("Waiting")
-      value <- ticker.race(promise.get)
+      value <- ticker.race(promise.await)
       _ <- putStrLn(s"value=$value")
     } yield ()
   }

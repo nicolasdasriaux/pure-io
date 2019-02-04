@@ -31,7 +31,7 @@ object PureIoApp extends App {
           case 2 => guessNumber.const(false)
           case 3 => countdown(50).const(false)
           case 4 => fibonacciCalculator.const(false)
-          case 5 => IO.now(true)
+          case 5 => IO.succeed(true)
         }
       } yield exit
     }.flatMap { exit =>
@@ -70,7 +70,7 @@ object PureIoApp extends App {
         s <- getStrLn
       } yield parseInt(s)
     }.flatMap {
-      case Some(number) if 1 <= number && number <= 10 => IO.now(number)
+      case Some(number) if 1 <= number && number <= 10 => IO.succeed(number)
       case Some(number) => putStrLn(s"Number should be between $min and $max") *> getNumber(min, max)
       case None => putStrLn("Not a number") *> getNumber(min, max)
     }
@@ -93,8 +93,8 @@ object PureIoApp extends App {
   }
 
   def fibonacci(n: BigInt): IO[Nothing, BigInt] = {
-    if (n == 0) IO.now(1)
-    else if (n == 1) IO.now(1)
+    if (n == 0) IO.succeed(1)
+    else if (n == 1) IO.succeed(1)
     else
       for {
         fn1 <- fibonacci(n - 2).fork

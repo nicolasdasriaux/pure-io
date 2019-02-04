@@ -130,15 +130,12 @@ def getStrLn: IO[IOException, String] = {
 
 ```scala
 object Calculator {
-  private lazy val executorService = Executors.newScheduledThreadPool(5)
+  private lazy val executor = Executors.newScheduledThreadPool(5)
 
   def add(a: Int, b: Int): IO[Nothing, Int] = {
     IO.async { (callback: IO[Nothing, Int] => Unit) =>
-      val notifyCompletion: Runnable = { () =>
-        callback(IO.point(a + b))
-      }
-
-      executorService.schedule(notifyCompletion, 5, TimeUnit.SECONDS)
+      val completion: Runnable = { () => callback(IO.point(a + b)) }
+      executor.schedule(completion, 5, TimeUnit.SECONDS)
     }
   }
 }
@@ -150,21 +147,18 @@ object Calculator {
 
 ```scala
 object Calculator {
-  private lazy val executorService = Executors.newScheduledThreadPool(5)
+  private lazy val executor = Executors.newScheduledThreadPool(5)
 
   def add(a: Int, b: Int): IO[Nothing, Int] = {
     IO.asyncInterrupt { (callback: IO[Nothing, Int] => Unit) =>
-      val notifyCompletion: Runnable = { () =>
-        callback(IO.point(a + b))
-      }
-
-      val eventualResult = executorService.schedule(notifyCompletion, 5, TimeUnit.SECONDS)
+      val complete: Runnable = { () => callback(IO.point(a + b)) }
+      val eventualResult = executor.schedule(complete, 5, TimeUnit.SECONDS)
       val canceler: Canceler = IO.sync(eventualResult.cancel(false))
       Left(canceler)
     }
   }
 }
-```
+ ```
 
 ---
 
@@ -202,12 +196,12 @@ val printRolledDice: IO[Nothing, Unit] =
 # Too Much Nesting
 
 ```scala
-val welcomeNewPlayer: IO[Nothing, Unit] =
-  putStrLn("What's your name?").flatMap { _ /* Unit */ =>
-    getStrLn.catchAll(_ => IO.point("")).flatMap { name /* String */ =>
-      randomBetween(0, 20).flatMap { x /* Int */ =>
-        randomBetween(0, 20).flatMap { y /* Int */ =>
-          randomBetween(0, 20).flatMap { z /* Int */ =>
+val welcomeNewPlayer: IO[IOException, Unit] =
+  putStrLn("What's your name?").flatMap { _ =>
+    getStrLn.flatMap { name =>
+      randomBetween(0, 20).flatMap { x =>
+        randomBetween(0, 20).flatMap { y =>
+          randomBetween(0, 20).flatMap { z =>
             putStrLn(s"Welcome $name, you start at coordinates($x, $y, $z).")
           }
         }
@@ -215,15 +209,16 @@ val welcomeNewPlayer: IO[Nothing, Unit] =
     }
   }
 ```
+
 ---
 
 # Flatten Them All!
 
 ```scala
-val welcomeNewPlayer: IO[Nothing, Unit] =
+val welcomeNewPlayer: IO[IOException, Unit] =
   for {
     _ <- putStrLn("What's your name?")
-    name <- getStrLn.catchAll(_ => IO.point(""))
+    name <- getStrLn
     x <- randomBetween(0, 20)
     y <- randomBetween(0, 20)
     z <- randomBetween(0, 20)
@@ -263,10 +258,10 @@ val printRandomPoint: IO[Nothing, Unit] = {
 | assignment | `B`        | `=`      | `B`             |
 
 |            | `for` comprehension type | `yield` expression type |
-|------------|------------------------- |-------------------------|
+|------------|--------------------------|-------------------------|
 | production | `IO[E, R]`               | `R`                     |
 
-* Combines **only `DBIO[E, T]`**, **no mix** with `Option[T]`, `Future[T]`, `Seq[T]`...
+* Combines **only `IO[E, T]`**, **no mix** with `Option[T]`, `Future[T]`, `Seq[T]`...
 * But it could be **only** `Option[T]`, or **only** `Future[T]`, or **only** `Seq[T]`...
 
 ---
