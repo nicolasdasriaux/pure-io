@@ -1,6 +1,7 @@
 lazy val root = (project in file("."))
   .settings(
-    name := "pureio",
+    organization := "pureio",
+    name := "scala-pure-io",
     version := "0.1",
     scalaVersion := "2.12.7",
     libraryDependencies := Seq(

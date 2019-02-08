@@ -5,8 +5,8 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>jpureio</groupId>
-    <artifactId>jpureio</artifactId>
+    <groupId>pureio</groupId>
+    <artifactId>java-pure-io</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
