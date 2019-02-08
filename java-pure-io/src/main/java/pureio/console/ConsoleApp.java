@@ -16,7 +16,7 @@ public class ConsoleApp {
                 });
             });
 
-    // ------ Hello App -----------------------------------------------------------------------------------------------
+    // ------ Get Int -------------------------------------------------------------------------------------------------
 
     public static Option<Integer> parseInt(final String s) {
         return Try.of(() -> Integer.valueOf(s)).toOption();
