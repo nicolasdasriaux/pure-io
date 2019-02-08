@@ -8,6 +8,8 @@ package pureio {
   import pureio.sync._
   object RTS extends RTS
 
+  case class Point(x: Int, y: Int)
+
   package basic {
     object Main {
       val success: IO[Nothing, Int] = IO.succeed(42)
@@ -50,8 +52,6 @@ package pureio {
         case e: IOException => e
       }
     }
-
-    case class Point(x: Int, y: Int)
   }
 
   package async {
