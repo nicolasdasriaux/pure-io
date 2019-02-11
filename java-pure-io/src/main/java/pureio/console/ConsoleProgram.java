@@ -74,19 +74,15 @@ interface ConsoleProgram<A> {
 
     static <A> A runUnsafe(final ConsoleProgram<A> consoleProgram) {
         ConsoleProgram<A> current = consoleProgram;
-
-        do {
-            if (current instanceof GetStrLn) {
-                final GetStrLn<A> getStrLn = (GetStrLn<A>) current;
-                final String line = new Scanner(System.in).nextLine();
-                current = getStrLn.next().apply(line);
-            } else if (current instanceof PutStrLn) {
-                final PutStrLn<A> putStrLn = (PutStrLn<A>) current;
-                System.out.println(putStrLn.line());
-                current = putStrLn.next().get();
-            } else if (current instanceof Yield) {
-                final Yield<A> yield = (Yield<A>) current;
-                return yield.value();
+        do { // Run all steps (trampoline)
+            if (current instanceof GetStrLn) { final GetStrLn<A> getStrLn = (GetStrLn<A>) current;
+                final String line = new Scanner(System.in).nextLine(); // Run current step
+                current = getStrLn.next().apply(line);                 // Run remaining steps (continuation)
+            } else if (current instanceof PutStrLn) { final PutStrLn<A> putStrLn = (PutStrLn<A>) current;
+                System.out.println(putStrLn.line());                   // Run current setp
+                current = putStrLn.next().get();                       // Run remaining steps (continuation)
+            } else if (current instanceof Yield) { final Yield<A> yield = (Yield<A>) current;
+                return yield.value();                                  // Return result
             } else {
                 throw new IllegalArgumentException("Unexpected ConsoleProgram operation");
             }

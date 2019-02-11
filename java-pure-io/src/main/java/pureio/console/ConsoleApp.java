@@ -59,29 +59,40 @@ public class ConsoleApp {
 
     // ------ Main App ------------------------------------------------------------------------------------------------
 
-    public static final ConsoleProgram<Unit> printMenu =
+    public static final ConsoleProgram<Unit> displayMenu =
             putStrLn("Menu")
                     .thenChain(__ -> putStrLn("1) Hello"))
                     .thenChain(__ -> putStrLn("2) Countdown"))
                     .thenChain(__ -> putStrLn("3) Exit"));
 
+    public static final ConsoleProgram<Integer> getChoice =
+            getIntBetween(1, 3);
+
+    public static ConsoleProgram<Boolean> launchMenuItem(final int choice) {
+        switch (choice) {
+            case 1: return helloApp.thenTransform(__ -> false);
+            case 2: return countdownApp.thenTransform(__ -> false);
+            case 3: return yield(true); // Should exit
+            default: throw new IllegalArgumentException("Unexpected item number");
+        }
+    }
+
     public static ConsoleProgram<Unit> mainApp() {
-        return printMenu.thenChain(__1 -> {
-            return getIntBetween(1, 3).thenChain(itemNumber -> {
-                final ConsoleProgram<Boolean> itemAction;
-                switch (itemNumber) {
-                    case 1: itemAction = helloApp.thenChain(__2 -> yield(false)); break;
-                    case 2: itemAction = countdownApp.thenChain(__2 -> yield(false)); break;
-                    case 3: itemAction = yield(true); break;
-                    default: throw new IllegalArgumentException("Unexpected item number");
-                }
-                return itemAction.thenChain(exit -> exit ? yield(Unit.of()) : /* RECURSE */ mainApp());
+        return displayMenu.thenChain(__ -> {
+            return getChoice.thenChain(choice -> {
+                return launchMenuItem(choice).thenChain(exit -> {
+                    if (exit) {
+                        return yield(Unit.of());
+                    } else {
+                        return /* RECURSE */ mainApp();
+                    }
+                });
             });
         });
     }
 
     public static void main(String[] args) {
         final ConsoleProgram<Unit> program = mainApp();
-        runUnsafe(program);
+        runUnsafe(program); // The
     }
 }

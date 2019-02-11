@@ -1,6 +1,5 @@
 package pureio.console;
 
-import io.vavr.match.annotation.Unapply;
 import org.immutables.value.Value;
 
 @Value.Immutable(singleton = true)
