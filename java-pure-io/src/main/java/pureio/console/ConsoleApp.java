@@ -22,18 +22,17 @@ public class ConsoleApp {
         return Try.of(() -> Integer.valueOf(s)).toOption();
     }
 
-    public static ConsoleProgram<Option<Integer>> getMaybeInt() {
-        return getStrLn().thenTransform(s -> parseInt(s));
-    }
-
     public static ConsoleProgram<Integer> getInt() {
-        return getMaybeInt().thenChain(maybeInt -> {
-            return maybeInt.isDefined() ? yield(maybeInt.get()) : getInt() /* RECURSE */;
-        });
+        return getStrLn()
+                .thenTransform(s -> parseInt(s))
+                .thenChain(maybeInt -> {
+                    return maybeInt.isDefined() ? yield(maybeInt.get()) : /* RECURSE */ getInt();
+                });
     }
 
     public static ConsoleProgram<Integer> getIntBetween(final int min, final int max) {
-        return putStrLn(String.format("Enter a number between %d and %d", min, max)).thenChain(__ -> {
+        final String message = String.format("Enter a number between %d and %d", min, max);
+        return putStrLn(message).thenChain(__ -> {
             return getInt().thenChain(i -> {
                 return min <= i && i <= max ? yield(i) : /* RECURSE */ getIntBetween(min, max);
             });

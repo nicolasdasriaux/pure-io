@@ -229,6 +229,27 @@ public class ConsoleApp {
 
 ---
 
+# Counting Down
+
+```java
+    public static final ConsoleProgram<Unit> countdownApp =
+            getIntBetween(10, 100000).thenChain(n -> {
+                return countdown(n);
+            });
+
+    public static ConsoleProgram<Unit> countdown(final int n) {
+        if (n == 0) {
+            return putStrLn("BOOM!!!");
+        } else {
+            return putStrLn(Integer.toString(n)).thenChain(__ -> {
+                return /* RECURSE */ countdown(n - 1);
+            });
+        }
+    }
+```
+
+---
+
 # Diplaying Menu and Getting Choice
 
 ```java
@@ -245,7 +266,7 @@ public static final ConsoleProgram<Integer> getChoice =
 
 ---
 
-# Launching Item
+# Launching Menu Item
 
 ```java
 public static ConsoleProgram<Boolean> launchMenuItem(final int choice) {
@@ -273,6 +294,49 @@ public static ConsoleProgram<Unit> mainApp() {
                     return /* RECURSE */ mainApp();
                 }
             });
+        });
+    });
+}
+```
+
+---
+
+# Parsing an Integer with a Total Function
+
+
+```java
+public static Option<Integer> parseInt(final String s) {
+    return Try.of(() -> Integer.valueOf(s)).toOption();
+}
+```
+
+* `parseInt` is defined for any `String`, it's **total**.
+* No exception! :wink:
+
+| Expression      |  Result   |
+|-----------------|-----------|
+| `parseInt("3")` | `Some(3)` |
+| `parseInt("a")` | `None`    |
+
+---
+
+# Getting Integer from Console
+
+
+```java
+public static ConsoleProgram<Integer> getInt() {
+    return getStrLn()
+            .thenTransform(s -> parseInt(s))
+            .thenChain(maybeInt -> {
+                return maybeInt.isDefined() ? yield(maybeInt.get()) : /* RECURSE */ getInt();
+            });
+}
+
+public static ConsoleProgram<Integer> getIntBetween(final int min, final int max) {
+    final String message = String.format("Enter a number between %d and %d", min, max);
+    return putStrLn(message).thenChain(__ -> {
+        return getInt().thenChain(i -> {
+            return min <= i && i <= max ? yield(i) : /* RECURSE */ getIntBetween(min, max);
         });
     });
 }
