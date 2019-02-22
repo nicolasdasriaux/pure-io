@@ -4,7 +4,7 @@ import java.io.IOException
 import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 
-import scalaz.zio.Exit.Cause.Interruption
+import scalaz.zio.Exit.Cause.Interrupt
 import scalaz.zio._
 import scalaz.zio.console.putStrLn
 import scalaz.zio.duration._
@@ -24,14 +24,14 @@ object AsyncIoApp extends App {
     for {
       nameFiber <- NameService.getName(id).fork
       _ <- nameFiber.interrupt.delay(3.second).fork
-      name <- nameFiber.await.flatMap(exitResult => IO.done(exitResult.fold({ case Interruption => Exit.succeed(None); case cause => Exit.fail(cause) }, name => Exit.succeed(Some(name)))))
+      name <- nameFiber.await.flatMap(exitResult => IO.done(exitResult.fold({ case Interrupt => Exit.succeed(None); case cause => Exit.halt(cause) }, name => Exit.succeed(Some(name)))))
       _ <- putStrLn(s"Name for $id is $name")
 
       _ <- File.printAllLines(Paths.get("/Users/axa/Development/presentations/pure-io/build.sbt")).race(IO.sleep(5.seconds))
 
       namesFiber <- getNames.fork
       _ <- namesFiber.interrupt.delay(2.seconds).fork
-      names <- namesFiber.await.flatMap(exitResult => IO.done(exitResult.fold({ case Interruption => Exit.succeed(List.empty); case cause => Exit.fail(cause) }, names => Exit.succeed(names))))
+      names <- namesFiber.await.flatMap(exitResult => IO.done(exitResult.fold({ case Interrupt => Exit.succeed(List.empty); case cause => Exit.halt(cause) }, names => Exit.succeed(names))))
       _ <- putStrLn(s"names=$names")
     } yield ()
   }

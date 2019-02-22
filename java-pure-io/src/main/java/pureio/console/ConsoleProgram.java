@@ -6,7 +6,7 @@ import java.util.Scanner;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "Convert2MethodRef"})
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "Convert2MethodRef", "UnnecessaryLocalVariable"})
 interface ConsoleProgram<A> {
     @Value.Immutable
     abstract class GetStrLn<A> implements ConsoleProgram<A> {
@@ -56,35 +56,56 @@ interface ConsoleProgram<A> {
     default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
         if (this instanceof GetStrLn) {
             final GetStrLn<A> getStrLn = (GetStrLn<A>) this;
-            return GetStrLn.of(line -> getStrLn.next().apply(line).thenChain(f));
+            final Function<String, ConsoleProgram<A>> next = getStrLn.next();
+
+            final Function<String, ConsoleProgram<B>> chainedNext = line -> {
+                final ConsoleProgram<A> cpa = next.apply(line);
+                final ConsoleProgram<B> cpb = cpa.thenChain(f);
+                return cpb;
+            };
+
+            return GetStrLn.of(chainedNext);
         } else if (this instanceof PutStrLn) {
             final PutStrLn<A> putStrLn = (PutStrLn<A>) this;
-            return PutStrLn.of(putStrLn.line(), () -> putStrLn.next().get().thenChain(f));
+            final Supplier<ConsoleProgram<A>> next = putStrLn.next();
+
+            final Supplier<ConsoleProgram<B>> chainedNext = () -> {
+                final ConsoleProgram<A> cpa = next.get();
+                final ConsoleProgram<B> cpb = cpa.thenChain(f);
+                return cpb;
+            };
+
+            return PutStrLn.of(putStrLn.line(), chainedNext);
         } else if (this instanceof Yield) {
             final Yield<A> yield = (Yield<A>) this;
-            return f.apply(yield.value());
+            final A a = yield.value();
+            final ConsoleProgram<B> cpb = f.apply(a);
+            return cpb;
         } else {
             throw new IllegalArgumentException("Unexpected Console Program");
         }
     }
 
     default <B> ConsoleProgram<B> thenTransform(final Function<A, B> f) {
-        return this.thenChain(a -> Yield.of(f.apply(a)));
+        return this.thenChain(a -> {
+            final B b = f.apply(a);
+            return Yield.of(b);
+        });
     }
 
-    static <A> A runUnsafe(final ConsoleProgram<A> consoleProgram) {
+    static <A> A unsafeRun(final ConsoleProgram<A> consoleProgram) {
         ConsoleProgram<A> current = consoleProgram;
-        do { // Run all steps (trampoline)
+        do { // Run all steps stack-free even for recursion (trampoline)
             if (current instanceof GetStrLn) { final GetStrLn<A> getStrLn = (GetStrLn<A>) current;
-                final String line = new Scanner(System.in).nextLine(); // Run current step
-                current = getStrLn.next().apply(line);                 // Run remaining steps (continuation)
+                final String line = new Scanner(System.in).nextLine(); // EXECUTE current step
+                current = getStrLn.next().apply(line);                 // GET remaining steps (continuation)
             } else if (current instanceof PutStrLn) { final PutStrLn<A> putStrLn = (PutStrLn<A>) current;
-                System.out.println(putStrLn.line());                   // Run current setp
-                current = putStrLn.next().get();                       // Run remaining steps (continuation)
+                System.out.println(putStrLn.line());                   // EXECUTE current setp
+                current = putStrLn.next().get();                       // GET remaining steps (continuation)
             } else if (current instanceof Yield) { final Yield<A> yield = (Yield<A>) current;
-                return yield.value();                                  // Return result
+                return yield.value();                                  // RETURN result
             } else {
-                throw new IllegalArgumentException("Unexpected ConsoleProgram operation");
+                throw new IllegalArgumentException("Unexpected Console Program");
             }
         } while (true);
     }

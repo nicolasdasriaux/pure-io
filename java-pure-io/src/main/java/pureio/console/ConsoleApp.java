@@ -92,6 +92,6 @@ public class ConsoleApp {
 
     public static void main(String[] args) {
         final ConsoleProgram<Unit> program = mainApp();
-        runUnsafe(program); // The
+        unsafeRun(program);
     }
 }

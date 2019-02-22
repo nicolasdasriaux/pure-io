@@ -1,13 +1,31 @@
 autoscale: true
-footer: Purely Fonctional IO
+footer: Immutable Pure I/O
 slidenumbers: true
 
-# [fit] **Purely Functional IO**
-## in Java
+# Immutable
+# [fit] **Pure I/O**
+## [fit] in Java... and in Scala with ZIO
 
 ---
 
-# Console Program ADT
+# Previously on Practical Immutability...
+
+* Immutable Classes
+* Immutable Collections and Options
+* Immutable variables
+* Expressions
+* Algebraic Data Types (ADT)
+* Pattern Matching
+
+---
+
+# Building a Pure Program<br>From The Ground Up
+## in Java with _Immutables_ and _Vavr_
+
+
+---
+
+# Console Program
 
 ```java
 interface ConsoleProgram<A> { /* ... */ }
@@ -109,7 +127,6 @@ public abstract class Unit {
     }
 }
 ```
-
 ---
 
 # Chaining Programs
@@ -119,17 +136,74 @@ interface ConsoleProgram<A> { // ...
     default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
         if (this instanceof GetStrLn) {
             final GetStrLn<A> getStrLn = (GetStrLn<A>) this;
-            return GetStrLn.of(line -> getStrLn.next().apply(line).thenChain(f));
+            // ...
         } else if (this instanceof PutStrLn) {
             final PutStrLn<A> putStrLn = (PutStrLn<A>) this;
-            return PutStrLn.of(putStrLn.line(), () -> putStrLn.next().get().thenChain(f));
+            // ...
         } else if (this instanceof Yield) {
             final Yield<A> yield = (Yield<A>) this;
-            return f.apply(yield.value());
+            // ...
         } else {
             throw new IllegalArgumentException("Unexpected Console Program");
         }
     } // ...
+}
+```
+
+---
+
+# Chaining After `GetStrLn`
+
+```java
+default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
+    // ...
+        final PutStrLn<A> putStrLn = (PutStrLn<A>) this;
+        final Supplier<ConsoleProgram<A>> next = putStrLn.next();
+
+        final Supplier<ConsoleProgram<B>> chainedNext = () -> {
+            final ConsoleProgram<A> cpa = next.get();
+            final ConsoleProgram<B> cpb = cpa.thenChain(f);
+            return cpb;
+        };
+
+        return PutStrLn.of(putStrLn.line(), chainedNext);
+    // ...
+}
+```
+
+---
+
+# Chaining After `PutStrLn`
+
+```java
+default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
+    // ...
+        final PutStrLn<A> putStrLn = (PutStrLn<A>) this;
+        final Supplier<ConsoleProgram<A>> next = putStrLn.next();
+        
+        final Supplier<ConsoleProgram<B>> chainedNext = () -> {
+            final ConsoleProgram<A> cpa = next.get();
+            final ConsoleProgram<B> cpb = cpa.thenChain(f);
+            return cpb;
+        };
+        
+        return PutStrLn.of(putStrLn.line(), chainedNext);
+    // ...
+}
+```
+
+---
+
+# Chaining After `Yield`
+
+```java
+default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
+    // ...
+        final Yield<A> yield = (Yield<A>) this;
+        final A a = yield.value();
+        final ConsoleProgram<B> cpb = f.apply(a);
+        return cpb;
+    // ...
 }
 ```
 
@@ -190,22 +264,22 @@ public class ConsoleApp {
 
 ```java
 interface ConsoleProgram<A> { // ...
-    static <A> A runUnsafe(final ConsoleProgram<A> consoleProgram) {
+    static <A> A unsafeRun(final ConsoleProgram<A> consoleProgram) {
         ConsoleProgram<A> current = consoleProgram;
-        do { // Run all steps (trampoline)
+        do { // Run all steps stack-free even for recursion (trampoline)
             if (current instanceof GetStrLn) { final GetStrLn<A> getStrLn = (GetStrLn<A>) current;
-                final String line = new Scanner(System.in).nextLine(); // Run current step
-                current = getStrLn.next().apply(line);                 // Run remaining steps (continuation)
+                final String line = new Scanner(System.in).nextLine(); // EXECUTE current step
+                current = getStrLn.next().apply(line);                 // GET remaining steps (continuation)
             } else if (current instanceof PutStrLn) { final PutStrLn<A> putStrLn = (PutStrLn<A>) current;
-                System.out.println(putStrLn.line());                   // Run current setp
-                current = putStrLn.next().get();                       // Run remaining steps (continuation)
+                System.out.println(putStrLn.line());                   // EXECUTE current setp
+                current = putStrLn.next().get();                       // GET remaining steps (continuation)
             } else if (current instanceof Yield) { final Yield<A> yield = (Yield<A>) current;
-                return yield.value();                                  // Return result
+                return yield.value();                                  // RETURN result
             } else {
-                throw new IllegalArgumentException("Unexpected ConsoleProgram operation");
+                throw new IllegalArgumentException("Unexpected Console Program");
             }
         } while (true);
-    } // ...
+    }
 }
 ```
 
@@ -219,13 +293,13 @@ public class ConsoleApp {
     // PURE ...
     public static void main(String[] args) {
         final ConsoleProgram<Unit> program = helloApp; // PURE
-        runUnsafe(program); // IMPURE!!! But that's OK!
+        unsafeRun(program); // IMPURE!!! But that's OK!
     }
 }
 ```
 
-* Sure, `runUnsafe` call point (_end of the world_) is impure :imp:... 
-* But the rest of the code is entirely pure :innocent:!
+* Sure, `unsafeRun` call point (**_end of the world_**) is **impure** :imp:... 
+* But the **rest of the code** is fully **pure** :innocent:!
 
 ---
 
@@ -344,6 +418,11 @@ public static ConsoleProgram<Integer> getIntBetween(final int min, final int max
 
 ---
 
+# Business-Ready Pure IO
+## in Scala with _ZIO_
+
+---
+
 # `IO[E, A]`
 
 ```scala
@@ -375,17 +454,16 @@ IO[E, A] // E = Error, A = Result
 ```scala
 object HelloWorldApp {
   // Wraps synchronous (blocking) side-effecting code in an IO
-  val helloWorld: IO[Nothing, Unit] = IO.sync(Console.println("Hello World!"))
-  // Nothing is printed after this line has run.
-  // Somehow equivalent to IO.sync(() => Console.println("Hello World!"))
-  // So the IO holds a lambda (() => Console.println("Hello World!")) but do not run it.
+  val helloWorld: IO[Nothing, Unit] = IO.sync(/* () => */Console.println("Hello World!"))
+  // The IO just holds a lambda but does not run it.
 
   // Creates a Runtime system as a single instance named RTS
   object RTS extends RTS
 
   def main(args: Array[String]): Unit = {
     // Run the IO with the RTS. Prints "Hello World!".
-    RTS.unsafeRun(helloWorld) // Comment this line and nothing will ever print
+    val program = helloWorld
+    RTS.unsafeRun(program) // Comment this line and nothing will ever print
   }
 }
 ```
