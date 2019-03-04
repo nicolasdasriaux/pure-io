@@ -1,9 +1,9 @@
-package pureio.console;
+package pureio.console.pure;
 
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 
-import static pureio.console.ConsoleProgram.*;
+import static pureio.console.pure.ConsoleProgram.*;
 
 @SuppressWarnings({"CodeBlock2Expr", "WeakerAccess", "Convert2MethodRef"})
 public class ConsoleApp {

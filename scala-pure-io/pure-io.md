@@ -19,9 +19,92 @@ slidenumbers: true
 
 ---
 
+# Purity Enables Unlimited 100% Safe Refactorings
+
+* Extract variable
+* Inline variable
+* Extract method
+* Inline method
+
+---
+
+# Impurity Breaks Refactorings
+
+---
+
+# Original Program
+
+```java
+public class ConsoleApp {
+    public static void main(String[] args) {
+        putStrLn("What's player 1 name?");
+        final String player1 = getStrLn();
+        putStrLn("What's player 2 name?");
+        final String player2 = getStrLn();
+        putStrLn(String.format("Players are %s and %s.", player1, player2));
+    }
+}
+```
+
+```
+What's player 1 name?
+> Paul
+What's player 2 name?
+> Mary
+Players are Paul and Mary.
+```
+
+---
+
+# Broken Extract Variable Refactoring
+
+```java
+public class BrokenExtractVariableConsoleApp {
+    public static void main(String[] args) {
+        final String s = getStrLn();
+        putStrLn("What's player 1 name?");
+        final String player1 = s;
+        putStrLn("What's player 2 name?");
+        final String player2 = s;
+        putStrLn(String.format("Players are %s and %s.", player1, player2));
+    }
+}
+```
+
+```
+> Paul
+What's player 1 name?
+What's player 2 name?
+Players are Paul and Paul.
+```
+
+---
+
+# Broken Inline Variable Refactoring
+
+```java
+public class BrokenInlineVariableConsoleApp {
+    public static void main(String[] args) {
+        putStrLn("What's player 1 name?");
+        putStrLn("What's player 2 name?");
+        final String player2 = getStrLn();
+        putStrLn(String.format("Players are %s and %s.", getStrLn(), player2));
+    }
+}
+```
+
+```
+What's player 1 name?
+What's player 2 name?
+> Paul
+> Mary
+Players are Mary and Paul.
+```
+
+---
+
 # Building a Pure Program<br>From The Ground Up
 ## in Java with _Immutables_ and _Vavr_
-
 
 ---
 
@@ -117,7 +200,7 @@ interface ConsoleProgram<A> { // ...
 
 ---
 
-# A Value Containing Nothing (`Unit`)
+# A Value Containing Emptyness (`Unit`)
 
 ```java
 @Value.Immutable(singleton = true)
@@ -157,16 +240,16 @@ interface ConsoleProgram<A> { // ...
 ```java
 default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
     // ...
-        final PutStrLn<A> putStrLn = (PutStrLn<A>) this;
-        final Supplier<ConsoleProgram<A>> next = putStrLn.next();
+        final GetStrLn<A> getStrLn = (GetStrLn<A>) this;
+        final Function<String, ConsoleProgram<A>> next = getStrLn.next();
 
-        final Supplier<ConsoleProgram<B>> chainedNext = () -> {
-            final ConsoleProgram<A> cpa = next.get();
+        final Function<String, ConsoleProgram<B>> chainedNext = line -> {
+            final ConsoleProgram<A> cpa = next.apply(line);
             final ConsoleProgram<B> cpb = cpa.thenChain(f);
             return cpb;
         };
 
-        return PutStrLn.of(putStrLn.line(), chainedNext);
+        return GetStrLn.of(chainedNext);
     // ...
 }
 ```
