@@ -67,6 +67,7 @@ interface ConsoleProgram<A> {
             return GetStrLn.of(chainedNext);
         } else if (this instanceof PutStrLn) {
             final PutStrLn<A> putStrLn = (PutStrLn<A>) this;
+            final String line = putStrLn.line();
             final Supplier<ConsoleProgram<A>> next = putStrLn.next();
 
             final Supplier<ConsoleProgram<B>> chainedNext = () -> {
@@ -75,7 +76,7 @@ interface ConsoleProgram<A> {
                 return cpb;
             };
 
-            return PutStrLn.of(putStrLn.line(), chainedNext);
+            return PutStrLn.of(line, chainedNext);
         } else if (this instanceof Yield) {
             final Yield<A> yield = (Yield<A>) this;
             final A a = yield.value();

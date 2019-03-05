@@ -17,8 +17,7 @@ object PureIoApp extends App {
       putStrLn("1) Hello World") *>
       putStrLn("2) Guess a Number") *>
       putStrLn("3) Countdown") *>
-      putStrLn("4) Fibonacci") *>
-      putStrLn("5) Quit")
+      putStrLn("4) Quit")
 
   val getChoice: ZIO[Console, IOException, Int] =
     getNumber(1, 5)
@@ -27,8 +26,7 @@ object PureIoApp extends App {
     case 1 => helloApp.const(false)
     case 2 => guessNumberApp.const(false)
     case 3 => countDownApp.const(false)
-    case 4 => fibonacciApp.const(false)
-    case 5 => IO.succeed(true)
+    case 4 => IO.succeed(true)
   }
 
   val menu: ZIO[Console, IOException, Unit] = {
@@ -81,26 +79,6 @@ object PureIoApp extends App {
       putStrLn("BOOM!!!")
     else
       putStrLn(n.toString) *> countdown(n - 1)
-  }
-
-  val fibonacciApp: ZIO[Console, IOException, Unit] = {
-    for {
-      n <- getNumber(1, 10)
-      result <- fibonacci(n)
-      _ <- putStrLn(s"fibonacci($n) = $result")
-    } yield ()
-  }
-
-  def fibonacci(n: BigInt): IO[Nothing, BigInt] = {
-    if (n == 0) IO.succeed(1)
-    else if (n == 1) IO.succeed(1)
-    else
-      for {
-        fn1 <- fibonacci(n - 2).fork
-        fn2 <- fibonacci(n - 1).fork
-        n1 <- fn1.join
-        n2 <- fn2.join
-      } yield n1 + n2
   }
 
   def parseInt(s: String): Option[Int] = Try(s.toInt).toOption

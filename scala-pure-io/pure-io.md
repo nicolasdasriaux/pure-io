@@ -19,20 +19,34 @@ slidenumbers: true
 
 ---
 
-# Purity Enables Unlimited 100% Safe Refactorings
+# Functional Programming
 
-* Extract variable
-* Inline variable
-* Extract method
-* Inline method
-
----
-
-# Impurity Breaks Refactorings
+* FP is programming with **functions** that are:
+  - **Deterministic**: same arguments implies same result
+  - **Total**: result always available for arguments
+  - **Pure**: no side-effects, only effect is computing result
+  
+* A consequence of FP is **referential transparency**.
 
 ---
 
-# Original Program
+# Referential Transparency
+
+* FP programs are **referentially transparent**.
+  - **Typical refactorings cannot break a working program** :smile:.
+* Applies to the following refactorings:
+  - Extract variable
+  - Inline variable
+  - Extract method
+  - Inline method
+
+---
+
+# Refactorings Break Impure :imp:  Programs
+
+---
+
+# A Working Program
 
 ```java
 public class ConsoleApp {
@@ -116,13 +130,14 @@ interface ConsoleProgram<A> { /* ... */ }
 
 * Describes a **program** performing I/Os on **console**
 * When run, will eventually yield a **result** of type `A`
-* **GADT** or Generalized Algebraic Data Type 
-  - `ConsoleProgram` is parameterized by type `A`
-  - ADT consists of parameterized `GetStrLn`, `PutStrLn` and `Yield`
+* `ConsoleProgram<A>` can be a program that
+  - **reads a line** from console (`GetStrLn`) and then do the rest, 
+  - **prints a line** to console (`PutStrLn`) and the do the rest,
+  - just **yields a result** (`Yield`).
 
 ---
 
-# Get a String Line from Console (`GetStrLn`)
+# Read Line from Console (`GetStrLn`)
 
 ```java
 interface ConsoleProgram<A> {
@@ -141,7 +156,7 @@ interface ConsoleProgram<A> {
 
 ---
 
-# Put a String Line to Console (`PutStrLn`)
+# Print Line to Console (`PutStrLn`)
 
 ```java
 interface ConsoleProgram<A> { // ...
@@ -262,15 +277,16 @@ default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) 
 default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
     // ...
         final PutStrLn<A> putStrLn = (PutStrLn<A>) this;
+        final String line = putStrLn.line();
         final Supplier<ConsoleProgram<A>> next = putStrLn.next();
-        
+
         final Supplier<ConsoleProgram<B>> chainedNext = () -> {
             final ConsoleProgram<A> cpa = next.get();
             final ConsoleProgram<B> cpb = cpa.thenChain(f);
             return cpb;
         };
-        
-        return PutStrLn.of(putStrLn.line(), chainedNext);
+
+        return PutStrLn.of(line, chainedNext);
     // ...
 }
 ```
@@ -298,7 +314,10 @@ default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) 
 ```java
 interface ConsoleProgram<A> { // ...
     default <B> ConsoleProgram<B> thenTransform(final Function<A, B> f) {
-        return this.thenChain(a -> Yield.of(f.apply(a)));
+        return this.thenChain(a -> {
+            final B b = f.apply(a);
+            return Yield.of(b);
+        });
     } // ...
 }
 ```
@@ -498,6 +517,18 @@ public static ConsoleProgram<Integer> getIntBetween(final int min, final int max
     });
 }
 ```
+
+---
+
+# Just a Toy
+
+* What's **good** :smile:
+  - Stack safe including with recursion
+  - Rather efficient
+  - Unlimited refactorings
+* What's **not so good** :worried:
+  - Not general enough, only console programs
+  - Nesting can be annoying (extract variables and methods!)
 
 ---
 
