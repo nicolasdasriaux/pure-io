@@ -1,18 +1,14 @@
 package pureio
 
-import scalaz.zio.{DefaultRuntime, IO}
+import scalaz.zio.{App, IO}
 
-object HelloWorldApp {
+object HelloWorldApp extends App {
   // Wraps synchronous (blocking) side-effecting code in an IO
-  val helloWorld: IO[Nothing, Unit] = IO.effectTotal(/* () => */ Console.println("Hello World!"))
-  // The IO just holds a lambda but does not run it.
+  val helloWorld: IO[Nothing, Unit] =
+    IO.effectTotal(/* () => */ Console.println("Hello World!"))
+    // The IO just holds a lambda but does not run it for now.
 
-  // Creates a Runtime system as a single instance named RTS
-  object RTS extends DefaultRuntime
-
-  def main(args: Array[String]): Unit = {
-    // Run the IO with the RTS. Prints "Hello World!".
-    val program = helloWorld
-    RTS.unsafeRun(program) // Comment this line and nothing will ever print
+  def run(args: List[String]): IO[Nothing, Int] = {
+    helloWorld.either.fold(_ => 1, _ => 0)
   }
 }

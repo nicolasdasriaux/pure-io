@@ -552,93 +552,67 @@ IO[E, A] // E = Error, A = Result
 
 ---
 
-# `IO` is Pure
-
-* `IO` values are **pure** :innocent:.
-* Can be **combined** to form complex programs
-* Can be **inlined** or **extracted** without changing the meaning of the code
-* A full **program** can be represented as a **single `IO` value**
-* Can eventually be run in the `main` method
-* Only **impure** :imp: point of the code  
-
----
-
-# Hello `IO`
+# Hello World!
 
 ```scala
-object HelloWorldApp {
+object HelloWorldApp extends App {
   // Wraps synchronous (blocking) side-effecting code in an IO
-  val helloWorld: IO[Nothing, Unit] = IO.sync(/* () => */Console.println("Hello World!"))
-  // The IO just holds a lambda but does not run it.
+  val helloWorld: IO[Nothing, Unit] =
+    IO.effectTotal(/* () => */ Console.println("Hello World!"))
+    // The IO just holds a lambda but does not run it for now.
 
-  // Creates a Runtime system as a single instance named RTS
-  object RTS extends RTS
-
-  def main(args: Array[String]): Unit = {
-    // Run the IO with the RTS. Prints "Hello World!".
-    val program = helloWorld
-    RTS.unsafeRun(program) // Comment this line and nothing will ever print
+  def run(args: List[String]): IO[Nothing, Int] = {
+    helloWorld.either.fold(_ => 1, _ => 0)
   }
 }
 ```
 
 ---
 
-# Basic `IO`s
+# Wrapping in `IO`
+
+---
+
+# Pure in `IO`
 
 ```scala
-val success: IO[Nothing, Int] = IO.point(42)
-// Will never fail
-// Will always succeed with result 42
+val success: IO[Nothing, Int] = IO.succeed(42)
+val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
+// Will never fail (Nothing)
+// Will always succeed with result 42 (Int)
 
-val failure: IO[String, Nothing] = IO.fail("Failed")
-// Will always fail with error "Failed"
-// will never succeed
+val failure: IO[String, Nothing] = IO.fail("Failure")
+// Will always fail with error "Failed" (String)
+// will never succeed (Nothing)
 
 val exceptionFailure: IO[IllegalStateException, Nothing] =
   IO.fail(new IllegalStateException("Failure"))
-// Error can be any type
 // Error can then be an exception (but just as a value, never thrown!)
-```
+ ```
 
 ---
 
-# Wrapping in `IO`
-
---- 
-
-# Wrapping Side-Effecting Code in `IO`
-
-* Wrap a **synchronous** (blocking) side-effecting code
-  - When **non exception-throwing**, use `IO.sync`
-  - When **exception-throwing**, use `IO.syncCatch`, `syncThrowable`, `syncException`
-  - Catches exceptions and wraps them with `IO.fail`
-* Wrap an **asynchronous** (non-blocking) side-effecting code
-  * When **uninterruptible**, use `IO.async`
-  * When **interruptible** , use `IO.asyncInterrupt`
-* Can then combine all kinds of `IO`s seamlessly
-
----
-
-# Synchronous, Non Exception-Throwing
+# Impure, Synchronous in `IO`
 
 ```scala
-def randomBetween(min: Int, max: Int): IO[Nothing, Int] =
+def randomBetween(min: Int, max: Int): IO[Nothing, Int] = {
   // Side-effecting code updates the state of a random generator,
   // and returns a random number (Int).
   // It can never fail (Nothing).
-  IO.sync(Random.nextInt(max - min) + min)
+  IO.effectTotal(Random.nextInt(max - min) + min)
+}
 
-def putStrLn(line: String): IO[Nothing, Unit] =
+def putStrLn(line: String): IO[Nothing, Unit] = {
   // Side-defecting code prints a line,
   // and returns void (Unit).
   // It can never fail (Nothing).
-  IO.sync(scala.Console.println(line))
+  IO.effectTotal(scala.Console.println(line))
+}
 ```
 
 ---
 
-# Synchronous, Exception-Throwing
+# [fit] Impure, Synchronous, Exception-Throwing in `IO`
 
 ```scala
 def getStrLn: IO[IOException, String] = {
@@ -647,47 +621,11 @@ def getStrLn: IO[IOException, String] = {
   // It might throw an IOException. IO catches exception,
   // and translates it into a failure containing the error (IOException).
   // IOException is neutralized, it is NOT propagated but just used as a value.
-  IO.syncCatch(scala.io.StdIn.readLine()) {
+  IO.effect(scala.io.StdIn.readLine()).refineOrDie {
     case e: IOException => e
   }
 }
 ```
-
----
-
-# Asynchronous, Uninterruptible
-
-```scala
-object Calculator {
-  private lazy val executor = Executors.newScheduledThreadPool(5)
-
-  def add(a: Int, b: Int): IO[Nothing, Int] = {
-    IO.async { (callback: IO[Nothing, Int] => Unit) =>
-      val completion: Runnable = { () => callback(IO.point(a + b)) }
-      executor.schedule(completion, 5, TimeUnit.SECONDS)
-    }
-  }
-}
-```
-
----
-
-# Asynchronous, Interruptible
-
-```scala
-object Calculator {
-  private lazy val executor = Executors.newScheduledThreadPool(5)
-
-  def add(a: Int, b: Int): IO[Nothing, Int] = {
-    IO.asyncInterrupt { (callback: IO[Nothing, Int] => Unit) =>
-      val complete: Runnable = { () => callback(IO.point(a + b)) }
-      val eventualResult = executor.schedule(complete, 5, TimeUnit.SECONDS)
-      val canceler: Canceler = IO.sync(eventualResult.cancel(false))
-      Left(canceler)
-    }
-  }
-}
- ```
 
 ---
 
@@ -706,14 +644,23 @@ val randomLetter: IO[Nothing, Char] =
 
 ---
 
-# Sequencing `IO`s (`flatMap`)
+# Chaining `IO`s (broken `map`)
 
 ```scala
-val printRolledDiceWRONG: IO[Nothing, IO[Nothing, Unit]] = // Oops! Wrong type!
+val printRolledDiceWRONG: IO[Nothing, IO[Nothing, Unit]] =
   randomBetween(1, 6).map { dice /* Int */ =>
     putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
   }
+```
 
+* Wrong **nested** type `IO[Nothing, IO[Nothing, Unit]]`
+* Needs to be made **flat** somehow as `IO[Nothing, Unit]`
+
+---
+
+# Chaining `IO`s (`flatMap`)
+
+```scala
 val printRolledDice: IO[Nothing, Unit] =
   randomBetween(1, 6).flatMap { dice /* Int */ =>
     putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
@@ -722,7 +669,19 @@ val printRolledDice: IO[Nothing, Unit] =
 
 ---
 
-# Too Much Nesting
+# Chaining and Transforming `IO`s
+
+```scala
+randomBetween(0, 20).flatMap { x =>
+  randomBetween(0, 20).map { y =>
+    Point(x, y)
+  }
+}
+```
+
+---
+
+# Pyramid of `map`s and `flatMap`s :smiling_imp:
 
 ```scala
 val welcomeNewPlayer: IO[IOException, Unit] =
@@ -741,7 +700,7 @@ val welcomeNewPlayer: IO[IOException, Unit] =
 
 ---
 
-# Flatten Them All!
+# Flatten Them All :innocent:
 
 ```scala
 val welcomeNewPlayer: IO[IOException, Unit] =
@@ -757,6 +716,20 @@ val welcomeNewPlayer: IO[IOException, Unit] =
 
 ---
 
+# Intermediary Variable
+
+```scala
+val printRandomPoint: IO[Nothing, Unit] =
+  for {
+    x <- randomBetween(0, 20)
+    y <- randomBetween(0, 20)
+    point = Point(x, y) // Not running an IO, '=' instead of '<-'
+    _ <- putStrLn(s"point=$point")
+  } yield ()
+```
+
+---
+
 # Anatomy of `for` Comprehension
 
 ---
@@ -764,7 +737,7 @@ val welcomeNewPlayer: IO[IOException, Unit] =
 # `for` Comprehension **Types**
 
 ```scala
-val printRandomPoint: IO[Nothing, Unit] = {
+val printRandomPoint: IO[Nothing, Point] = {
   for {
     x     /* Int   */ <- randomBetween(0, 10)            /* IO[Nothing, Int]  */
     _     /* Unit  */ <- putStrLn(s"x=$x")               /* IO[Nothing, Unit] */
@@ -773,8 +746,8 @@ val printRandomPoint: IO[Nothing, Unit] = {
     point /* Point */ =  Point(x, y)                     /* Point             */
     _     /* Unit  */ <- putStrLn(s"point.x=${point.x}") /* IO[Nothing, Unit] */
     _     /* Unit  */ <- putStrLn(s"point.y=${point.y}") /* IO[Nothing, Unit] */
-  } yield () /* Unit */
-} /* IO[Nothing, Unit] */
+  } yield point /* Point */
+} /* IO[Nothing, Point] */
 ```
 
 ---
@@ -798,7 +771,7 @@ val printRandomPoint: IO[Nothing, Unit] = {
 # `for` Comprehension **Scopes**
 
 ```scala
-val printRandomPoint: IO[Nothing, Unit] = {
+val printRandomPoint: IO[Nothing, Point] = {
   for {
     x <- randomBetween(0, 10)            /*  x                */
     _ <- putStrLn(s"x=$x")               /*  O                */
@@ -807,7 +780,7 @@ val printRandomPoint: IO[Nothing, Unit] = {
     point = Point(x, y)                  /*  O    O    point  */
     _ <- putStrLn(s"point.x=${point.x}") /*  |    |    O      */
     _ <- putStrLn(s"point.y=${point.y}") /*  |    |    O      */
-  } yield ()                             /*  |    |    |      */
+  } yield point                          /*  |    |    O      */
 }
 ```
 
@@ -816,7 +789,7 @@ val printRandomPoint: IO[Nothing, Unit] = {
 # `for` Comprehension **Implicit Nesting**
 
 ```scala
-val printRandomPoint: IO[Nothing, Unit] = {
+val printRandomPoint: IO[Nothing, Point] = {
   for {
        x <- randomBetween(0, 10)
     /* | */ _ <- putStrLn(s"x=$x")
@@ -825,6 +798,6 @@ val printRandomPoint: IO[Nothing, Unit] = {
     /* |    |    |    | */ point = Point(x, y)
     /* |    |    |    |    | */ _ <- putStrLn(s"point.x=${point.x}")
     /* |    |    |    |    |    | */ _ <- putStrLn(s"point.y=${point.y}")
-  } /* |    |    |    |    |    |    | */ yield ()
+  } /* |    |    |    |    |    |    | */ yield point
 }
 ```

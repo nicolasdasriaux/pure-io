@@ -13,17 +13,16 @@ package pureio {
   package basic {
     object Main {
       val success: IO[Nothing, Int] = IO.succeed(42)
-      val successLazy: IO[Nothing, Int] = IO.succeedLazy(40 + 2)
-      // Will never fail
-      // Will always succeed with result 42
+      val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
+      // Will never fail (Nothing)
+      // Will always succeed with result 42 (Int)
 
       val failure: IO[String, Nothing] = IO.fail("Failure")
-      // Will always fail with error "Failed"
-      // will never succeed
+      // Will always fail with error "Failed" (String)
+      // will never succeed (Nothing)
 
       val exceptionFailure: IO[IllegalStateException, Nothing] =
         IO.fail(new IllegalStateException("Failure"))
-      // Error can be any type
       // Error can then be an exception (but just as a value, never thrown!)
     }
   }
@@ -105,7 +104,7 @@ package pureio {
 
     package flatmap {
       object Main {
-        val printRolledDiceWRONG: IO[Nothing, IO[Nothing, Unit]] = // Oops! Wrong type!
+        val printRolledDiceWRONG: IO[Nothing, IO[Nothing, Unit]] =
           randomBetween(1, 6).map { dice /* Int */ =>
             putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
           }
@@ -176,7 +175,7 @@ package pureio {
             for {
               x <- randomBetween(0, 20)
               y <- randomBetween(0, 20)
-              point = Point(x, y)
+              point = Point(x, y) // Not running an IO, '=' instead of '<-'
               _ <- putStrLn(s"point=$point")
             } yield ()
 
@@ -338,7 +337,7 @@ package pureio {
 
         def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.effectTotal(Random.nextInt(max - min) + min)
 
-        val printRandomPoint: IO[Nothing, Unit] = {
+        val printRandomPoint: IO[Nothing, Point] = {
           for {
             x     /* Int   */ <- randomBetween(0, 10)            /* IO[Nothing, Int]  */
             _     /* Unit  */ <- putStrLn(s"x=$x")               /* IO[Nothing, Unit] */
@@ -347,8 +346,8 @@ package pureio {
             point /* Point */ =  Point(x, y)                     /* Point             */
             _     /* Unit  */ <- putStrLn(s"point.x=${point.x}") /* IO[Nothing, Unit] */
             _     /* Unit  */ <- putStrLn(s"point.y=${point.y}") /* IO[Nothing, Unit] */
-          } yield () /* Unit */
-        } /* IO[Nothing, Unit] */
+          } yield point /* Point */
+        } /* IO[Nothing, Point] */
 
         def main(args: Array[String]): Unit = {
           RTS.unsafeRun(printRandomPoint)
@@ -360,7 +359,7 @@ package pureio {
       object Main {
         def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.effectTotal(Random.nextInt(max - min) + min)
 
-        val printRandomPoint: IO[Nothing, Unit] = {
+        val printRandomPoint: IO[Nothing, Point] = {
           for {
             x <- randomBetween(0, 10)            /*  x                */
             _ <- putStrLn(s"x=$x")               /*  O                */
@@ -369,7 +368,7 @@ package pureio {
             point = Point(x, y)                  /*  O    O    point  */
             _ <- putStrLn(s"point.x=${point.x}") /*  |    |    O      */
             _ <- putStrLn(s"point.y=${point.y}") /*  |    |    O      */
-          } yield ()                             /*  |    |    |      */
+          } yield point                          /*  |    |    O      */
         }
 
         def main(args: Array[String]): Unit = {
@@ -380,7 +379,7 @@ package pureio {
 
     package implicit_nesting {
       object Main {
-        val printRandomPoint: IO[Nothing, Unit] = {
+        val printRandomPoint: IO[Nothing, Point] = {
           for {
                x <- randomBetween(0, 10)
             /* | */ _ <- putStrLn(s"x=$x")
@@ -389,7 +388,7 @@ package pureio {
             /* |    |    |    | */ point = Point(x, y)
             /* |    |    |    |    | */ _ <- putStrLn(s"point.x=${point.x}")
             /* |    |    |    |    |    | */ _ <- putStrLn(s"point.y=${point.y}")
-          } /* |    |    |    |    |    |    | */ yield ()
+          } /* |    |    |    |    |    |    | */ yield point
         }
 
         def main(args: Array[String]): Unit = {

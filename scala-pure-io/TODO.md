@@ -43,3 +43,83 @@ class HelloYouApp extends App {
   }
 }
 ```
+
+---
+
+# `IO` is Pure
+
+* `IO` values are **pure** :innocent:.
+* Can be **combined** to form complex programs
+* Can be **inlined** or **extracted** without changing the meaning of the code
+* A full **program** can be represented as a **single `IO` value**
+* Can eventually be run in the `main` method
+* Only **impure** :imp: point of the code  
+
+---
+
+# Hello `IO`
+
+```scala
+object HelloWorldApp {
+  // Wraps synchronous (blocking) side-effecting code in an IO
+  val helloWorld: IO[Nothing, Unit] = IO.effectTotal(/* () => */ Console.println("Hello World!"))
+  // The IO just holds a lambda but does not run it.
+
+  // Creates a Runtime system as a single instance named RTS
+  object RTS extends DefaultRuntime
+
+  def main(args: Array[String]): Unit = {
+    // Run the IO with the RTS. Prints "Hello World!".
+    val program = helloWorld
+    RTS.unsafeRun(program) // Comment this line and nothing will ever print
+  }
+}
+```
+
+--- 
+
+# Wrapping Side-Effecting Code in `IO`
+
+* Wrap a **synchronous** (blocking) side-effecting code
+  - When **non exception-throwing**, use `IO.sync`
+  - When **exception-throwing**, use `IO.syncCatch`, `syncThrowable`, `syncException`
+  - Catches exceptions and wraps them with `IO.fail`
+* Wrap an **asynchronous** (non-blocking) side-effecting code
+  * When **uninterruptible**, use `IO.async`
+  * When **interruptible** , use `IO.asyncInterrupt`
+* Can then combine all kinds of `IO`s seamlessly
+---
+
+# Asynchronous, Uninterruptible
+
+```scala
+object Calculator {
+  private lazy val executor = Executors.newScheduledThreadPool(5)
+
+  def add(a: Int, b: Int): IO[Nothing, Int] = {
+    IO.async { (callback: IO[Nothing, Int] => Unit) =>
+      val completion: Runnable = { () => callback(IO.point(a + b)) }
+      executor.schedule(completion, 5, TimeUnit.SECONDS)
+    }
+  }
+}
+```
+
+---
+
+# Asynchronous, Interruptible
+
+```scala
+object Calculator {
+  private lazy val executor = Executors.newScheduledThreadPool(5)
+
+  def add(a: Int, b: Int): IO[Nothing, Int] = {
+    IO.asyncInterrupt { (callback: IO[Nothing, Int] => Unit) =>
+      val complete: Runnable = { () => callback(IO.point(a + b)) }
+      val eventualResult = executor.schedule(complete, 5, TimeUnit.SECONDS)
+      val canceler: Canceler = IO.sync(eventualResult.cancel(false))
+      Left(canceler)
+    }
+  }
+}
+ ```
