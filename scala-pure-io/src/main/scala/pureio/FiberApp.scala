@@ -3,13 +3,14 @@ package pureio
 import scalaz.zio.console._
 import scalaz.zio.duration._
 import scalaz.zio._
+import scalaz.zio.clock.Clock
 
 
 object FiberApp extends App {
-  override def run(args: List[String]): IO[Nothing, ExitStatus] =
-    program.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow)
+  override def run(args: List[String]): ZIO[Console with Clock, Nothing, Int] =
+    program.either.map(_.fold(_ => 1, _ => 0))
 
-  def program: IO[Nothing, Unit] = {
+  def program: ZIO[Console with Clock, Nothing, Unit] = {
     val a =
       putStrLn("A ")
         .repeat(Schedule.recurs(3) && Schedule.spaced(1.second).jittered)
@@ -25,7 +26,7 @@ object FiberApp extends App {
       putStrLn(".")
         .delay(500.milliseconds)
         .forever
-        .onTermination(_ => putStrLn("Done"))
+        // .onTermination(_ => putStrLn("Done"))
 
     def offer(queue: Queue[Int]) =
       IO.unit

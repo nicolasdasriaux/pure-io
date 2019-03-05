@@ -3,43 +3,47 @@ package pureio
 import java.io.IOException
 
 import scalaz.zio.console._
-import scalaz.zio.{App, IO}
+import scalaz.zio.{App, IO, ZIO}
 
 import scala.util.{Random, Try}
 
 object PureIoApp extends App {
-  def run(args: List[String]): IO[Nothing, ExitStatus] = {
-    menu.attempt.map(_.fold(_ => 1, _ => 0)).map(ExitStatus.ExitNow(_))
+  def run(args: List[String]): ZIO[Console, Nothing, Int] = {
+    menu.either.map(_.fold(_ => 1, _ => 0))
   }
 
-  def parseInt(s: String): Option[Int] = Try(s.toInt).toOption
-  def randomInt: IO[Nothing, Int] = IO.sync(Random.nextInt(10) + 1)
+  val displayMenu: ZIO[Console, Nothing, Unit] =
+    putStrLn("Menu") *>
+      putStrLn("1) Hello World") *>
+      putStrLn("2) Guess a Number") *>
+      putStrLn("3) Countdown") *>
+      putStrLn("4) Fibonacci") *>
+      putStrLn("5) Quit")
 
-  val menu: IO[IOException, Unit] = {
+  val getChoice: ZIO[Console, IOException, Int] =
+    getNumber(1, 5)
+
+  def launchMenuItem(choice: Int): ZIO[Console, IOException, Boolean] = choice match {
+    case 1 => helloApp.const(false)
+    case 2 => guessNumberApp.const(false)
+    case 3 => countDownApp.const(false)
+    case 4 => fibonacciApp.const(false)
+    case 5 => IO.succeed(true)
+  }
+
+  val menu: ZIO[Console, IOException, Unit] = {
     {
       for {
-        _ <- putStrLn("Menu")
-        _ <- putStrLn("1) Hello World")
-        _ <- putStrLn("2) Guess a Number")
-        _ <- putStrLn("3) Countdown")
-        _ <- putStrLn("4) Fibonacci")
-        _ <- putStrLn("5) Quit")
-        number <- getNumber(1, 5)
-
-        exit <- number match {
-          case 1 => helloWorld.const(false)
-          case 2 => guessNumber.const(false)
-          case 3 => countdown(50).const(false)
-          case 4 => fibonacciCalculator.const(false)
-          case 5 => IO.succeed(true)
-        }
+        _ <- displayMenu
+        choice <- getChoice
+        exit <- launchMenuItem(choice)
       } yield exit
     }.flatMap { exit =>
       if (exit) IO.unit else menu
     }
   }
 
-  val helloWorld: IO[IOException, Unit] = {
+  val helloApp: ZIO[Console, IOException, Unit] = {
     for {
       _ <- putStrLn("What's your name?")
       name <- getStrLn
@@ -47,7 +51,7 @@ object PureIoApp extends App {
     } yield ()
   }
 
-  val guessNumber: IO[IOException, Unit] = {
+  val guessNumberApp: ZIO[Console, IOException, Unit] = {
     for {
       number <- randomInt
       _ <- putStrLn("Guess a number between 1 and 10")
@@ -55,36 +59,31 @@ object PureIoApp extends App {
     } yield ()
   }
 
-  def guessLoop(number: Int, attempt: Int): IO[IOException, Unit] = {
+  def guessLoop(number: Int, attempt: Int): ZIO[Console, IOException, Unit] = {
     getNumber(1, 10).flatMap { guessedNumber =>
-      if (guessedNumber == number) putStrLn(s"You guessed well after $attempt attempt(s)")
-      else if (guessedNumber > number) putStrLn("It's to big") *> guessLoop(number, attempt + 1)
-      else putStrLn("It's to small") *> guessLoop(number, attempt + 1)
+      if (guessedNumber == number)
+        putStrLn(s"You guessed well after $attempt attempt(s)")
+      else if (guessedNumber > number)
+        putStrLn("It's to big") *> guessLoop(number, attempt + 1)
+      else
+        putStrLn("It's to small") *> guessLoop(number, attempt + 1)
     }
   }
 
-  def getNumber(min: Int, max: Int): IO[IOException, Int] = {
-    {
-      for {
-        _ <- putStrLn(s"Please enter a number between $min and $max")
-        s <- getStrLn
-      } yield parseInt(s)
-    }.flatMap {
-      case Some(number) if 1 <= number && number <= 10 => IO.succeed(number)
-      case Some(number) => putStrLn(s"Number should be between $min and $max") *> getNumber(min, max)
-      case None => putStrLn("Not a number") *> getNumber(min, max)
-    }
+  val countDownApp: ZIO[Console, IOException, Unit] =
+    for {
+      n <- getNumber(1, 10000)
+      _ <- countdown(n)
+    } yield ()
+
+  def countdown(n: Int): ZIO[Console, Nothing, Unit] = {
+    if (n == 0)
+      putStrLn("BOOM!!!")
+    else
+      putStrLn(n.toString) *> countdown(n - 1)
   }
 
-  def countdown(n: Int): IO[Nothing, Unit] = {
-    {
-      putStrLn(n.toString)
-    }.flatMap { _ =>
-      if (n == 0) IO.unit else countdown(n - 1)
-    }
-  }
-
-  val fibonacciCalculator: IO[IOException, Unit] = {
+  val fibonacciApp: ZIO[Console, IOException, Unit] = {
     for {
       n <- getNumber(1, 10)
       result <- fibonacci(n)
@@ -103,4 +102,21 @@ object PureIoApp extends App {
         n2 <- fn2.join
       } yield n1 + n2
   }
+
+  def parseInt(s: String): Option[Int] = Try(s.toInt).toOption
+
+  def getNumber(min: Int, max: Int): ZIO[Console, IOException, Int] = {
+    {
+      for {
+        _ <- putStrLn(s"Please enter a number between $min and $max")
+        s <- getStrLn
+      } yield parseInt(s)
+    }.flatMap {
+      case Some(number) if min <= number && number <= max => IO.succeed(number)
+      case Some(_) => putStrLn(s"Number should be between $min and $max") *> getNumber(min, max)
+      case None => putStrLn("Not a number") *> getNumber(min, max)
+    }
+  }
+
+  def randomInt: IO[Nothing, Int] = IO.effectTotal(Random.nextInt(10) + 1)
 }

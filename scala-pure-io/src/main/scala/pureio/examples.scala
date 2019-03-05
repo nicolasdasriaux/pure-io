@@ -1,22 +1,23 @@
 import java.io.IOException
 
-import scalaz.zio.{IO, RTS}
+import scalaz.zio.{IO, DefaultRuntime}
 
 import scala.util.Random
 
 package pureio {
   import pureio.sync._
-  object RTS extends RTS
 
+  object RTS extends DefaultRuntime
   case class Point(x: Int, y: Int)
 
   package basic {
     object Main {
       val success: IO[Nothing, Int] = IO.succeed(42)
+      val successLazy: IO[Nothing, Int] = IO.succeedLazy(40 + 2)
       // Will never fail
       // Will always succeed with result 42
 
-      val failure: IO[String, Nothing] = IO.fail("Failed")
+      val failure: IO[String, Nothing] = IO.fail("Failure")
       // Will always fail with error "Failed"
       // will never succeed
 
@@ -32,14 +33,14 @@ package pureio {
       // Side-effecting code updates the state of a random generator,
       // and returns a random number (Int).
       // It can never fail (Nothing).
-      IO.sync(Random.nextInt(max - min) + min)
+      IO.effectTotal(Random.nextInt(max - min) + min)
     }
 
     def putStrLn(line: String): IO[Nothing, Unit] = {
       // Side-defecting code prints a line,
       // and returns void (Unit).
       // It can never fail (Nothing).
-      IO.sync(scala.Console.println(line))
+      IO.effectTotal(scala.Console.println(line))
     }
 
     def getStrLn: IO[IOException, String] = {
@@ -48,7 +49,7 @@ package pureio {
       // It might throw an IOException. IO catches exception,
       // and translates it into a failure containing the error (IOException).
       // IOException is neutralized, it is NOT propagated but just used as a value.
-      IO.syncCatch(scala.io.StdIn.readLine()) {
+      IO.effect(scala.io.StdIn.readLine()).refineOrDie {
         case e: IOException => e
       }
     }
@@ -62,7 +63,7 @@ package pureio {
         private lazy val executor = Executors.newScheduledThreadPool(5)
 
         def add(a: Int, b: Int): IO[Nothing, Int] = {
-          IO.async { (callback: IO[Nothing, Int] => Unit) =>
+          IO.effectAsync { (callback: IO[Nothing, Int] => Unit) =>
             val completion: Runnable = { () => callback(IO.succeedLazy(a + b)) }
             executor.schedule(completion, 5, TimeUnit.SECONDS)
           }
@@ -77,10 +78,10 @@ package pureio {
         private lazy val executor = Executors.newScheduledThreadPool(5)
 
         def add(a: Int, b: Int): IO[Nothing, Int] = {
-          IO.asyncInterrupt { (callback: IO[Nothing, Int] => Unit) =>
+          IO.effectAsyncInterrupt { (callback: IO[Nothing, Int] => Unit) =>
             val complete: Runnable = { () => callback(IO.succeedLazy(a + b)) }
             val eventualResult = executor.schedule(complete, 5, TimeUnit.SECONDS)
-            val canceler: Canceler = IO.sync(eventualResult.cancel(false))
+            val canceler: Canceler = IO.effectTotal(eventualResult.cancel(false))
             Left(canceler)
           }
         }
@@ -120,7 +121,73 @@ package pureio {
       }
     }
 
-    package too_many_flatmaps {
+    package both {
+      package map_flatmap {
+        object Main {
+          val randomPoint: IO[Nothing, Point] =
+            randomBetween(0, 20).flatMap { x =>
+              randomBetween(0, 20).map { y =>
+                Point(x, y)
+              }
+            }
+
+          def main(args: Array[String]): Unit = {
+            RTS.unsafeRun(randomPoint)
+          }
+        }
+      }
+
+      package for_comprehension {
+        object Main {
+          val randomPoint: IO[Nothing, Point] =
+            for {
+              x <- randomBetween(0, 20)
+              y <- randomBetween(0, 20)
+            } yield Point(x, y)
+
+          def main(args: Array[String]): Unit = {
+            RTS.unsafeRun(randomPoint)
+          }
+        }
+      }
+    }
+
+    package intermediary_variable {
+      package map_flatmap {
+        object Main {
+          val printRandomPoint: IO[Nothing, Unit] =
+            randomBetween(0, 20).flatMap { x =>
+              randomBetween(0, 20).flatMap { y =>
+                val point = Point(x, y)
+                putStrLn(s"point=$point")
+
+              }
+            }
+
+          def main(args: Array[String]): Unit = {
+            RTS.unsafeRun(printRandomPoint)
+          }
+        }
+      }
+
+      package for_comprehension {
+        object Main {
+          val printRandomPoint: IO[Nothing, Unit] =
+            for {
+              x <- randomBetween(0, 20)
+              y <- randomBetween(0, 20)
+              point = Point(x, y)
+              _ <- putStrLn(s"point=$point")
+            } yield ()
+
+          def main(args: Array[String]): Unit = {
+            RTS.unsafeRun(printRandomPoint)
+          }
+        }
+      }
+    }
+
+    package too_many_maps_and_flatmaps {
       package map_flatmap {
         object Main {
           val welcomeNewPlayer: IO[IOException, Unit] =
@@ -160,36 +227,71 @@ package pureio {
         }
       }
     }
+  }
 
-    object rest {
-      val randomPoint: IO[Nothing, Point] =
-        randomBetween(0, 20).flatMap { x =>
-          randomBetween(0, 20).map { y =>
-            Point(x, y)
-          }
-        }
-
-      val randomPointWithForComprehension: IO[Nothing, Point] =
+  package conditioning {
+    object Main {
+      def describeNumber(n: Int): IO[Nothing, Unit] = {
         for {
-          x <- randomBetween(0, 20)
-          y <- randomBetween(0, 20)
-        } yield Point(x, y)
-
-      val printRandomPoint: IO[Nothing, Unit] =
-        randomBetween(0, 20).flatMap { x =>
-          randomBetween(0, 20).flatMap { y =>
-            val point = Point(x, y)
-            putStrLn(s"point=$point")
-          }
-        }
-
-      val printRandomPointWithForComprehension: IO[Nothing, Unit] =
-        for {
-          x <- randomBetween(0, 20)
-          y <- randomBetween(0, 20)
-          point = Point(x, y)
-          _ <- putStrLn(s"point=$point")
+          _ <- if (n % 2 == 0) putStrLn("Even") else putStrLn("Odd")
+          _ <- if (n == 42) putStrLn("The Anwser") else IO.unit
         } yield ()
+      }
+
+      val program: IO[Nothing, Unit] = describeNumber(42)
+
+      def main(args: Array[String]): Unit = {
+        RTS.unsafeRun(program)
+      }
+    }
+  }
+
+  package looping {
+    package recursion {
+      object Main {
+        def findName(id: Int): IO[Nothing, String] =
+          IO.succeedLazy(s"Name $id")
+
+        def findNames(ids: List[Int]): IO[Nothing, List[String]] = {
+          ids match {
+            case Nil => IO.succeed(Nil)
+
+            case id :: restIds =>
+              for {
+                name <- findName(id)
+                restNames <- findNames(restIds)
+              } yield  name :: restNames
+          }
+        }
+
+        val program: IO[Nothing, Unit] = for {
+          names <- findNames(List(1, 3, 5))
+          _ <- putStrLn(names.toString)
+        } yield ()
+
+        def main(args: Array[String]): Unit = {
+          RTS.unsafeRun(program)
+        }
+      }
+    }
+
+    package foreach {
+      object Main {
+        def findName(id: Int): IO[Nothing, String] =
+          IO.succeedLazy(s"Name $id")
+
+        def findNames(ids: List[Int]): IO[Nothing, List[String]] =
+          IO.foreach(ids) { id => findName(id) }
+
+        val program: IO[Nothing, Unit] = for {
+          names <- findNames(List(1, 3, 5))
+          _ <- putStrLn(names.toString)
+        } yield ()
+
+        def main(args: Array[String]): Unit = {
+          RTS.unsafeRun(program)
+        }
+      }
     }
   }
 
@@ -233,7 +335,8 @@ package pureio {
     package types {
       object Main {
         case class Point(x: Int, y: Int)
-        def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
+
+        def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.effectTotal(Random.nextInt(max - min) + min)
 
         val printRandomPoint: IO[Nothing, Unit] = {
           for {
@@ -255,7 +358,7 @@ package pureio {
 
     package scopes {
       object Main {
-        def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.sync(Random.nextInt(max - min) + min)
+        def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.effectTotal(Random.nextInt(max - min) + min)
 
         val printRandomPoint: IO[Nothing, Unit] = {
           for {
@@ -299,9 +402,7 @@ package pureio {
   package purity {
     package io {
       object Main {
-        val printHello: IO[Nothing, Unit] = IO.sync(println("Hello!"))
-        // Equivalent to IO.sync(() => println("Hello!"))
-        // Do not compile
+        val printHello: IO[Nothing, Unit] = IO.effectTotal(/* () => */ println("Hello!"))
 
         def main(args: Array[String]): Unit = {
           println("Start")
@@ -313,9 +414,7 @@ package pureio {
 
     package stateful {
       object Main {
-        val randomBetween1And10000: IO[Nothing, Int] = IO.sync(Random.nextInt(10000) + 1)
-        // Equivalent IO.sync(() => Random.nextInt(1000) + 1)
-        // Do not compile
+        val randomBetween1And10000: IO[Nothing, Int] = IO.effectTotal(Random.nextInt(10000) + 1)
 
         def main(args: Array[String]): Unit = {
           println("Start")
