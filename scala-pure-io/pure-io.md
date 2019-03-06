@@ -215,7 +215,7 @@ interface ConsoleProgram<A> { // ...
 
 ---
 
-# A Value Containing Emptyness (`Unit`)
+# A Value Containing Void (`Unit`)
 
 ```java
 @Value.Immutable(singleton = true)
@@ -225,6 +225,7 @@ public abstract class Unit {
     }
 }
 ```
+
 ---
 
 # Chaining Programs
@@ -309,7 +310,6 @@ default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) 
 ---
 
 # Transforming Result of Program
-
 
 ```java
 interface ConsoleProgram<A> { // ...
@@ -439,7 +439,6 @@ public static final ConsoleProgram<Integer> getChoice =
         getIntBetween(1, 3);
 ```
 
-
 ---
 
 # Launching Menu Item
@@ -450,7 +449,7 @@ public static ConsoleProgram<Boolean> launchMenuItem(final int choice) {
         case 1: return helloApp.thenTransform(__ -> false);
         case 2: return countdownApp.thenTransform(__ -> false);
         case 3: return yield(true); // Should exit
-        default: throw new IllegalArgumentException("Unexpected item number");
+        default: throw new IllegalArgumentException("Unexpected choice");
     }
 }
 ```
@@ -479,7 +478,6 @@ public static ConsoleProgram<Unit> mainApp() {
 
 # Parsing an Integer with a Total Function
 
-
 ```java
 public static Option<Integer> parseInt(final String s) {
     return Try.of(() -> Integer.valueOf(s)).toOption();
@@ -497,7 +495,6 @@ public static Option<Integer> parseInt(final String s) {
 ---
 
 # Getting Integer from Console
-
 
 ```java
 public static ConsoleProgram<Integer> getInt() {
@@ -587,7 +584,7 @@ val failure: IO[String, Nothing] = IO.fail("Failure")
 
 val exceptionFailure: IO[IllegalStateException, Nothing] =
   IO.fail(new IllegalStateException("Failure"))
-// Error can then be an exception (but just as a value, never thrown!)
+// Error can be an exception (but just as a value, never thrown!)
  ```
 
 ---
@@ -734,6 +731,13 @@ val printRandomPoint: IO[Nothing, Unit] =
 
 ---
 
+# [fit] **`for` comprehension is not a `for` loop**.
+## It can be a `for` loop...
+# [fit] But it can handle **many other things**
+## like `IO` and ... `Seq`, `Option`, `Future`...
+
+---
+
 # `for` Comprehension **Types**
 
 ```scala
@@ -763,8 +767,8 @@ val printRandomPoint: IO[Nothing, Point] = {
 |------------|--------------------------|-------------------------|
 | production | `IO[E, R]`               | `R`                     |
 
-* Combines **only `IO[E, T]`**, **no mix** with `Option[T]`, `Future[T]`, `Seq[T]`...
-* But it could be **only** `Option[T]`, or **only** `Future[T]`, or **only** `Seq[T]`...
+* Combines **only `IO[E, T]`**, **no mix** with `Seq[T]`, `Option[T]`, `Future[T]`...
+* But it could be **only** `Seq[T]`, **only** `Option[T]`, **only** `Future[T]`...
 
 ---
 

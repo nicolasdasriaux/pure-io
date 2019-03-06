@@ -72,7 +72,7 @@ public class ConsoleApp {
             case 1: return helloApp.thenTransform(__ -> false);
             case 2: return countdownApp.thenTransform(__ -> false);
             case 3: return yield(true); // Should exit
-            default: throw new IllegalArgumentException("Unexpected item number");
+            default: throw new IllegalArgumentException("Unexpected choice");
         }
     }
 

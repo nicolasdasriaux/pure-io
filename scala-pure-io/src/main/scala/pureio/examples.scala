@@ -23,7 +23,7 @@ package pureio {
 
       val exceptionFailure: IO[IllegalStateException, Nothing] =
         IO.fail(new IllegalStateException("Failure"))
-      // Error can then be an exception (but just as a value, never thrown!)
+      // Error can be an exception (but just as a value, never thrown!)
     }
   }
 
