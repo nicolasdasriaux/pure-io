@@ -32,14 +32,14 @@ package pureio {
       // Side-effecting code updates the state of a random generator,
       // and returns a random number (Int).
       // It can never fail (Nothing).
-      IO.effectTotal(Random.nextInt(max - min) + min)
+      IO.effectTotal(/* () => */ Random.nextInt(max - min) + min)
     }
 
     def putStrLn(line: String): IO[Nothing, Unit] = {
       // Side-defecting code prints a line,
       // and returns void (Unit).
       // It can never fail (Nothing).
-      IO.effectTotal(scala.Console.println(line))
+      IO.effectTotal(/* () => */ scala.Console.println(line))
     }
 
     def getStrLn: IO[IOException, String] = {
@@ -48,7 +48,7 @@ package pureio {
       // It might throw an IOException. IO catches exception,
       // and translates it into a failure containing the error (IOException).
       // IOException is neutralized, it is NOT propagated but just used as a value.
-      IO.effect(scala.io.StdIn.readLine()).refineOrDie {
+      IO.effect(/* () => */ scala.io.StdIn.readLine()).refineOrDie {
         case e: IOException => e
       }
     }

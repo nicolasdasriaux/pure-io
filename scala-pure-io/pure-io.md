@@ -363,7 +363,6 @@ public class ConsoleApp {
 
 # Interpreting a Program
 
-
 ```java
 interface ConsoleProgram<A> { // ...
     static <A> A unsafeRun(final ConsoleProgram<A> consoleProgram) {
@@ -519,18 +518,34 @@ public static ConsoleProgram<Integer> getIntBetween(final int min, final int max
 
 # Just a Toy
 
-* What's **good** :smile:
+* What's **good** :thumbsup:
   - Stack safe including with recursion
   - Rather efficient
   - Unlimited refactorings
-* What's **not so good** :worried:
+* What's **not so good** :thumbsdown:
   - Not general enough, only console programs
   - Nesting can be annoying (extract variables and methods!)
+  - Not testable
 
 ---
 
 # Business-Ready Pure IO
 ## in Scala with _ZIO_
+
+---
+
+# _ZIO_
+
+> Type-safe, composable, asynchronous and concurrent programming for Scala
+-- https://scalaz.github.io/scalaz-zio/
+
+* **Synchronicity** and **Asynchronicity** (handled reactively), combine seamlessly
+* **Concurrency**, based on lightweight fibers
+* **Resiliency**, can recover from errors
+* **Interruptibility**, can interrupt any program
+* **Resource Safety**, ensure resources will never leak (threads, sockets, file handles...)
+* **Performance**, extremely fast given features and strong guarantees
+* And also **Composability** and **Testability**
 
 ---
 
@@ -596,14 +611,14 @@ def randomBetween(min: Int, max: Int): IO[Nothing, Int] = {
   // Side-effecting code updates the state of a random generator,
   // and returns a random number (Int).
   // It can never fail (Nothing).
-  IO.effectTotal(Random.nextInt(max - min) + min)
+  IO.effectTotal(/* () => */ Random.nextInt(max - min) + min)
 }
 
 def putStrLn(line: String): IO[Nothing, Unit] = {
   // Side-defecting code prints a line,
   // and returns void (Unit).
   // It can never fail (Nothing).
-  IO.effectTotal(scala.Console.println(line))
+  IO.effectTotal(/* () => */ scala.Console.println(line))
 }
 ```
 
@@ -618,7 +633,7 @@ def getStrLn: IO[IOException, String] = {
   // It might throw an IOException. IO catches exception,
   // and translates it into a failure containing the error (IOException).
   // IOException is neutralized, it is NOT propagated but just used as a value.
-  IO.effect(scala.io.StdIn.readLine()).refineOrDie {
+  IO.effect(/* () => */ scala.io.StdIn.readLine()).refineOrDie {
     case e: IOException => e
   }
 }
