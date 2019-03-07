@@ -226,6 +226,10 @@ public abstract class Unit {
 }
 ```
 
+* Cannot use `Void`
+* Cannot create instances (`private` constructor :worried:)
+* Can just use `null` :imp:
+
 ---
 
 # Chaining Programs
@@ -555,8 +559,8 @@ public static ConsoleProgram<Integer> getIntBetween(final int min, final int max
 IO[E, A] // E = Error, A = Result
 ```
 
-* An immutable object that **describes** an **action performing side-effects**
-* An `IO` does nothing, it's just a value holding a program
+* An immutable object that **describes** a **program performing side-effects**.
+* An `IO` does nothing, it's just a **value** holding a program.
 * It must be interpreted by a **runtime system** or **RTS**
 * Only when **run** by the RTS, it will either
     - fail with an **error** of type **`E`**,
