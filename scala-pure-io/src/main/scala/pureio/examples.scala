@@ -1,6 +1,6 @@
 import java.io.IOException
 
-import scalaz.zio.{IO, DefaultRuntime}
+import scalaz.zio.{DefaultRuntime, IO}
 
 import scala.util.Random
 
@@ -257,9 +257,9 @@ package pureio {
 
             case id :: restIds =>
               for {
-                name <- findName(id)
-                restNames <- findNames(restIds)
-              } yield  name :: restNames
+                name      /* String       */ <- findName(id)       /* IO[Nothing, String]       */
+                restNames /* List[String] */ <- findNames(restIds) /* IO[Nothing, List[String]] */
+              } yield name :: restNames /* List[String] */
           }
         }
 
@@ -290,6 +290,29 @@ package pureio {
         def main(args: Array[String]): Unit = {
           RTS.unsafeRun(program)
         }
+      }
+    }
+  }
+
+  package retrying {
+    import scalaz.zio.Schedule
+    import scalaz.zio.duration._
+
+    object Main {
+      val randomNumber: IO[String, Int] =
+        for {
+          n <- IO.effectTotal(Random.nextInt())
+          _ <- if (n > 0) IO.succeed(n) else IO.fail("Negative")
+        } yield n
+
+      val program =
+        for {
+          n <- randomNumber.retry(Schedule.recurs(3) && Schedule.exponential(1.second))
+          _ <- putStrLn(n.toString)
+        } yield ()
+
+      def main(args: Array[String]): Unit = {
+        RTS.unsafeRun(program)
       }
     }
   }

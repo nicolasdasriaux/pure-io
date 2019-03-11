@@ -46,6 +46,22 @@ slidenumbers: true
 
 ---
 
+# Console Operations
+
+```scala
+public class Console {
+    public static String getStrLn() {
+        return new Scanner(System.in).nextLine();
+    }
+
+    public static void putStrLn(final String line) {
+        System.out.println(line);
+    }
+}
+```
+
+---
+
 # A Working Program
 
 ```java
@@ -556,7 +572,7 @@ public static ConsoleProgram<Integer> getIntBetween(final int min, final int max
 # `IO[E, A]`
 
 ```scala
-IO[E, A] // E = Error, A = Result
+IO[E, A] // IO<E, A>   E = Error, A = Result
 ```
 
 * An immutable object that **describes** a **program performing side-effects**.
@@ -824,3 +840,59 @@ val printRandomPoint: IO[Nothing, Point] = {
   } /* |    |    |    |    |    |    | */ yield point
 }
 ```
+
+---
+
+# Conditions and Loops
+
+---
+
+# Behaving Conditionally
+
+```scala
+def describeNumber(n: Int): IO[Nothing, Unit] = {
+  for {
+    _ <- if (n % 2 == 0) putStrLn("Even") else putStrLn("Odd")
+    _ <- if (n == 42) putStrLn("The Anwser") else IO.unit
+  } yield ()
+}
+```
+
+---
+
+# Repeating with **Recursion** :fearful:
+
+```scala
+def findName(id: Int): IO[Nothing, String] =
+  IO.succeedLazy(s"Name $id")
+
+def findNames(ids: List[Int]): IO[Nothing, List[String]] = {
+  ids match {
+    case Nil => IO.succeed(Nil)
+
+    case id :: restIds =>
+      for {
+        name      /* String       */ <- findName(id)       /* IO[Nothing, String]       */
+        restNames /* List[String] */ <- findNames(restIds) /* IO[Nothing, List[String]] */
+      } yield name :: restNames /* List[String] */
+  }
+}
+```
+
+---
+
+# Repeating with `foreach`
+
+```scala
+def findName(id: Int): IO[Nothing, String] =
+  IO.succeedLazy(s"Name $id")
+
+def findNames(ids: List[Int]): IO[Nothing, List[String]] =
+  IO.foreach(ids) { id => findName(id) }
+```
+
+* Recursion can be hard to read
+* Prefer using simpler alternatives whenever possible
+  - `IO.foreach`, `IO.collectAll`, `IO.foldLeft`
+  - Or `IO.foreachPar`, `IO.collectAllPar`, `IO.reduceAll`, `IO.mergeAll`
+    in **parallel** :thumbsup:

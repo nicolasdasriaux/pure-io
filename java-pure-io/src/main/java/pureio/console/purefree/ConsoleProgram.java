@@ -1,6 +1,10 @@
-package pureio.console.pure;
+package pureio.console.purefree;
 
 import org.immutables.value.Value;
+import pureio.console.pure.ImmutableGetStrLn;
+import pureio.console.pure.ImmutablePutStrLn;
+import pureio.console.pure.ImmutableYield;
+import pureio.console.pure.Unit;
 
 import java.util.Scanner;
 import java.util.function.Function;
