@@ -21,7 +21,8 @@ slidenumbers: true
 
 # Functional Programming
 
-* FP is programming with **functions** that are:
+* FP is programming with **functions**.
+* Functions are:
   - **Deterministic**: same arguments implies same result
   - **Total**: result always available for arguments
   - **Pure**: no side-effects, only effect is computing result
@@ -35,14 +36,14 @@ slidenumbers: true
 * FP programs are **referentially transparent**.
   - **Typical refactorings cannot break a working program** :smile:.
 * Applies to the following refactorings:
-  - Extract variable
-  - Inline variable
-  - Extract method
-  - Inline method
+  - :wrench: **Extract Variable**
+  - :wrench: **Inline Variable**
+  - :wrench: **Extract Method**
+  - :wrench: **Inline Method**
 
 ---
 
-# Refactorings Break Impure :imp:  Programs
+# [fit] Refactorings Break Impure :imp: Programs
 
 ---
 
@@ -162,6 +163,7 @@ public abstract class Program<A> { // ...
     } // ...
 }
 ```
+
 ---
 
 # Program Yielding a Value
@@ -207,7 +209,8 @@ public abstract class Program<A> { // ...
 
         return pa.thenChain(a -> {
             final B b = f.apply(a);
-            return Program.yield(b);
+            final Program<B> pb = Program.yield(b);
+            return pb;
         });
     } // ...
 }
@@ -503,14 +506,21 @@ object HelloWorldApp extends App {
 
 ---
 
-# Pure in `IO`
+# Success in `IO`
 
 ```scala
 val success: IO[Nothing, Int] = IO.succeed(42)
 val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
+
 // Will never fail (Nothing)
 // Will always succeed with result 42 (Int)
+```
 
+---
+
+# Failure in `IO`
+
+```scala
 val failure: IO[String, Nothing] = IO.fail("Failure")
 // Will always fail with error "Failed" (String)
 // will never succeed (Nothing)
@@ -522,7 +532,7 @@ val exceptionFailure: IO[IllegalStateException, Nothing] =
 
 ---
 
-# Impure, Synchronous in `IO`
+# Synchronous in `IO`
 
 ```scala
 def randomBetween(min: Int, max: Int): IO[Nothing, Int] = {
@@ -533,7 +543,7 @@ def randomBetween(min: Int, max: Int): IO[Nothing, Int] = {
 }
 
 def putStrLn(line: String): IO[Nothing, Unit] = {
-  // Side-defecting code prints a line,
+  // Side-effecting code prints a line,
   // and returns void (Unit).
   // It can never fail (Nothing).
   IO.effectTotal(/* () => */ scala.Console.println(line))
@@ -542,7 +552,7 @@ def putStrLn(line: String): IO[Nothing, Unit] = {
 
 ---
 
-# [fit] Impure, Synchronous, Exception-Throwing in `IO`
+# Synchronous, Exception-Throwing in `IO`
 
 ```scala
 def getStrLn: IO[IOException, String] = {
@@ -553,6 +563,42 @@ def getStrLn: IO[IOException, String] = {
   // IOException is neutralized, it is NOT propagated but just used as a value.
   IO.effect(/* () => */ scala.io.StdIn.readLine()).refineOrDie {
     case e: IOException => e
+  }
+}
+```
+
+---
+
+# Asynchronous in `IO`
+
+```java
+object Calculator {
+  private lazy val executor = Executors.newScheduledThreadPool(5)
+
+  def add(a: Int, b: Int): IO[Nothing, Int] = {
+    IO.effectAsync { (callback: IO[Nothing, Int] => Unit) =>
+      val completion: Runnable = { () => callback(IO.succeedLazy(a + b)) }
+      executor.schedule(completion, 5, TimeUnit.SECONDS)
+    }
+  }
+}
+```
+
+---
+
+# Asynchronous, Interruptible in `IO`
+
+```java
+object Calculator {
+  private lazy val executor = Executors.newScheduledThreadPool(5)
+
+  def add(a: Int, b: Int): IO[Nothing, Int] = {
+    IO.effectAsyncInterrupt { (callback: IO[Nothing, Int] => Unit) =>
+      val complete: Runnable = { () => callback(IO.succeedLazy(a + b)) }
+      val eventualResult = executor.schedule(complete, 5, TimeUnit.SECONDS)
+      val canceler = IO.effectTotal(eventualResult.cancel(false))
+      Left(canceler)
+    }
   }
 }
 ```
@@ -758,7 +804,7 @@ def describeNumber(n: Int): IO[Nothing, Unit] = {
 
 ---
 
-# Repeating with **Recursion** :fearful:
+# Looping with **Recursion** :fearful:
 
 ```scala
 def findName(id: Int): IO[Nothing, String] =
@@ -779,7 +825,7 @@ def findNames(ids: List[Int]): IO[Nothing, List[String]] = {
 
 ---
 
-# Repeating with `foreach`
+# Looping with `foreach`
 
 ```scala
 def findName(id: Int): IO[Nothing, String] =
@@ -791,6 +837,88 @@ def findNames(ids: List[Int]): IO[Nothing, List[String]] =
 
 * Recursion can be hard to read
 * Prefer using simpler alternatives whenever possible
-  - `IO.foreach`, `IO.collectAll`, `IO.foldLeft`
-  - Or `IO.foreachPar`, `IO.collectAllPar`, `IO.reduceAll`, `IO.mergeAll`
+  - `IO.foreach`, `IO.collectAll`, `IO.reduceAllPar`, `IO.mergeAll`
+  - Or `IO.foreachPar`, `IO.collectAllPar`, `IO.reduceAllPar`, `IO.mergeAllPar`
     in **parallel** :thumbsup:
+
+---
+
+# Further with _ZIO_
+
+---
+
+# Keeping Resource Safe
+
+```scala
+class Resource {
+  def close: IO[Nothing, Unit] = ???
+  def read: IO[Int, String] = ???
+}
+
+object Resource {
+  def open(name: String): IO[Int, Resource] = ???
+}
+
+val program: IO[Nothing, Unit] =
+  IO.bracket(Resource.open("hello"))(_.close) { resource =>
+    for {
+      line <- resource.read
+      _ <- putStrLn(line)
+    } yield ()
+  }
+```
+
+---
+
+# Retrying After Error
+
+```scala
+object NameService {
+  def find(id: Int): IO[Int, String] = ???
+}
+
+val retrySchedule = Schedule.recurs(3) && Schedule.exponential(1.second)
+
+val program =
+  for {
+    name <- NameService.find(1).retry(retrySchedule)
+    _ <- putStrLn(s"name=$name")
+  } yield ()
+```
+
+* `retry` repeats in case of **failure**.
+* There also exists `repeat` that repeats in case of **success**.
+
+---
+
+# Forking and Interrupting
+
+```scala
+val analyze: IO[Nothing, String] = ???
+val validate: IO[Nothing, Boolean] = ???
+
+val program: IO[Nothing, String] =
+  for {
+    analyzeFiber <- analyze.fork
+    validateFiber <- validate.fork
+    validated <- validateFiber.join
+    _ <- if (validated) IO.unit else analyzeFiber.interrupt
+    analysis <- analyzeFiber.join
+    _ <- putStrLn(analysis)
+  } yield analysis
+```
+
+---
+
+# But There's Much More in _ZIO_
+
+* **Streaming**
+  -  `Stream`, a lazy, concurrent, asynchronous source of values
+  -  `Sink`, a consumer of values from a `Stream`, which may produces a value when it has consumed enough
+* **Software Transactional Memory** (STM)
+* **Low Level Concurrency**
+  * `Promise`, a variable that may be set a single time, and awaited on by many fibers
+  * `Queue`, an asynchronous queue that never blocks
+  * `FiberLocal`, a variable whose value depends on the fiber that accesses it
+  * `Semaphore`, a semaphore
+  * `Ref`, a mutable reference to a value

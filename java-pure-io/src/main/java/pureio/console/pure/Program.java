@@ -34,7 +34,8 @@ public abstract class Program<A> {
 
         return pa.thenChain(a -> {
             final B b = f.apply(a);
-            return Program.yield(b);
+            final Program<B> pb = Program.yield(b);
+            return pb;
         });
     }
 

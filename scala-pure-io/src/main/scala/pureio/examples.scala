@@ -1,11 +1,12 @@
 import java.io.IOException
 
+import scalaz.zio.duration._
 import scalaz.zio.{DefaultRuntime, IO}
 
 import scala.util.Random
 
 package pureio {
-  import pureio.sync._
+  import pureio.sync.Main._
 
   object RTS extends DefaultRuntime
   case class Point(x: Int, y: Int)
@@ -14,6 +15,7 @@ package pureio {
     object Main {
       val success: IO[Nothing, Int] = IO.succeed(42)
       val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
+
       // Will never fail (Nothing)
       // Will always succeed with result 42 (Int)
 
@@ -27,29 +29,31 @@ package pureio {
     }
   }
 
-  object sync {
-    def randomBetween(min: Int, max: Int): IO[Nothing, Int] = {
-      // Side-effecting code updates the state of a random generator,
-      // and returns a random number (Int).
-      // It can never fail (Nothing).
-      IO.effectTotal(/* () => */ Random.nextInt(max - min) + min)
-    }
+  package sync {
+    object Main {
+      def randomBetween(min: Int, max: Int): IO[Nothing, Int] = {
+        // Side-effecting code updates the state of a random generator,
+        // and returns a random number (Int).
+        // It can never fail (Nothing).
+        IO.effectTotal(/* () => */ Random.nextInt(max - min) + min)
+      }
 
-    def putStrLn(line: String): IO[Nothing, Unit] = {
-      // Side-defecting code prints a line,
-      // and returns void (Unit).
-      // It can never fail (Nothing).
-      IO.effectTotal(/* () => */ scala.Console.println(line))
-    }
+      def putStrLn(line: String): IO[Nothing, Unit] = {
+        // Side-effecting code prints a line,
+        // and returns void (Unit).
+        // It can never fail (Nothing).
+        IO.effectTotal(/* () => */ scala.Console.println(line))
+      }
 
-    def getStrLn: IO[IOException, String] = {
-      // Side-effecting code reads from keyboard until a line is available,
-      // and returns the line (String).
-      // It might throw an IOException. IO catches exception,
-      // and translates it into a failure containing the error (IOException).
-      // IOException is neutralized, it is NOT propagated but just used as a value.
-      IO.effect(/* () => */ scala.io.StdIn.readLine()).refineOrDie {
-        case e: IOException => e
+      def getStrLn: IO[IOException, String] = {
+        // Side-effecting code reads from keyboard until a line is available,
+        // and returns the line (String).
+        // It might throw an IOException. IO catches exception,
+        // and translates it into a failure containing the error (IOException).
+        // IOException is neutralized, it is NOT propagated but just used as a value.
+        IO.effect(/* () => */ scala.io.StdIn.readLine()).refineOrDie {
+          case e: IOException => e
+        }
       }
     }
   }
@@ -71,7 +75,6 @@ package pureio {
     }
 
     package interruptible {
-      import scalaz.zio.Canceler
 
       object Calculator {
         private lazy val executor = Executors.newScheduledThreadPool(5)
@@ -80,7 +83,7 @@ package pureio {
           IO.effectAsyncInterrupt { (callback: IO[Nothing, Int] => Unit) =>
             val complete: Runnable = { () => callback(IO.succeedLazy(a + b)) }
             val eventualResult = executor.schedule(complete, 5, TimeUnit.SECONDS)
-            val canceler: Canceler = IO.effectTotal(eventualResult.cancel(false))
+            val canceler = IO.effectTotal(eventualResult.cancel(false))
             Left(canceler)
           }
         }
@@ -228,131 +231,6 @@ package pureio {
     }
   }
 
-  package conditioning {
-    object Main {
-      def describeNumber(n: Int): IO[Nothing, Unit] = {
-        for {
-          _ <- if (n % 2 == 0) putStrLn("Even") else putStrLn("Odd")
-          _ <- if (n == 42) putStrLn("The Anwser") else IO.unit
-        } yield ()
-      }
-
-      val program: IO[Nothing, Unit] = describeNumber(42)
-
-      def main(args: Array[String]): Unit = {
-        RTS.unsafeRun(program)
-      }
-    }
-  }
-
-  package looping {
-    package recursion {
-      object Main {
-        def findName(id: Int): IO[Nothing, String] =
-          IO.succeedLazy(s"Name $id")
-
-        def findNames(ids: List[Int]): IO[Nothing, List[String]] = {
-          ids match {
-            case Nil => IO.succeed(Nil)
-
-            case id :: restIds =>
-              for {
-                name      /* String       */ <- findName(id)       /* IO[Nothing, String]       */
-                restNames /* List[String] */ <- findNames(restIds) /* IO[Nothing, List[String]] */
-              } yield name :: restNames /* List[String] */
-          }
-        }
-
-        val program: IO[Nothing, Unit] = for {
-          names <- findNames(List(1, 3, 5))
-          _ <- putStrLn(names.toString)
-        } yield ()
-
-        def main(args: Array[String]): Unit = {
-          RTS.unsafeRun(program)
-        }
-      }
-    }
-
-    package foreach {
-      object Main {
-        def findName(id: Int): IO[Nothing, String] =
-          IO.succeedLazy(s"Name $id")
-
-        def findNames(ids: List[Int]): IO[Nothing, List[String]] =
-          IO.foreach(ids) { id => findName(id) }
-
-        val program: IO[Nothing, Unit] = for {
-          names <- findNames(List(1, 3, 5))
-          _ <- putStrLn(names.toString)
-        } yield ()
-
-        def main(args: Array[String]): Unit = {
-          RTS.unsafeRun(program)
-        }
-      }
-    }
-  }
-
-  package retrying {
-    import scalaz.zio.Schedule
-    import scalaz.zio.duration._
-
-    object Main {
-      val randomNumber: IO[String, Int] =
-        for {
-          n <- IO.effectTotal(Random.nextInt())
-          _ <- if (n > 0) IO.succeed(n) else IO.fail("Negative")
-        } yield n
-
-      val program =
-        for {
-          n <- randomNumber.retry(Schedule.recurs(3) && Schedule.exponential(1.second))
-          _ <- putStrLn(n.toString)
-        } yield ()
-
-      def main(args: Array[String]): Unit = {
-        RTS.unsafeRun(program)
-      }
-    }
-  }
-
-  package referentialtransparency {
-    package inlined {
-      object Main {
-        def addTwoRandomNumbers: IO[Nothing, Unit] = {
-          for {
-            r1 <- randomBetween(1, 25)
-            r2 <- randomBetween(1, 25)
-            _ <- putStrLn(s"$r1 + $r2 = ${r1 + r2}")
-          } yield ()
-        }
-
-        def main(args: Array[String]): Unit = {
-          RTS.unsafeRun(addTwoRandomNumbers)
-        }
-      }
-    }
-
-    package extracted {
-      object Main {
-        def addTwoRandomNumbers: IO[Nothing, Unit] = {
-          val randomBetween1To25: IO[Nothing, Int] = randomBetween(1, 25)
-
-          for {
-            r1 <- randomBetween1To25
-            r2 <- randomBetween1To25
-            _ <- putStrLn(s"$r1 + $r2 = ${r1 + r2}")
-          } yield ()
-        }
-
-        def main(args: Array[String]): Unit = {
-          RTS.unsafeRun(addTwoRandomNumbers)
-        }
-      }
-    }
-  }
-
   package for_comprehension_anatomy {
     package types {
       object Main {
@@ -404,7 +282,7 @@ package pureio {
       object Main {
         val printRandomPoint: IO[Nothing, Point] = {
           for {
-               x <- randomBetween(0, 10)
+            x <- randomBetween(0, 10)
             /* | */ _ <- putStrLn(s"x=$x")
             /* |    | */ y <- randomBetween(0, 10)
             /* |    |    | */ _ <- putStrLn(s"y=$y")
@@ -421,50 +299,147 @@ package pureio {
     }
   }
 
-  package purity {
-    package io {
+  package condition {
+    object Main {
+      def describeNumber(n: Int): IO[Nothing, Unit] = {
+        for {
+          _ <- if (n % 2 == 0) putStrLn("Even") else putStrLn("Odd")
+          _ <- if (n == 42) putStrLn("The Anwser") else IO.unit
+        } yield ()
+      }
+
+      val program: IO[Nothing, Unit] = describeNumber(42)
+
+      def main(args: Array[String]): Unit = {
+        RTS.unsafeRun(program)
+      }
+    }
+  }
+
+  package loop {
+    package recursion {
       object Main {
-        val printHello: IO[Nothing, Unit] = IO.effectTotal(/* () => */ println("Hello!"))
+        def findName(id: Int): IO[Nothing, String] =
+          IO.succeedLazy(s"Name $id")
+
+        def findNames(ids: List[Int]): IO[Nothing, List[String]] = {
+          ids match {
+            case Nil => IO.succeed(Nil)
+
+            case id :: restIds =>
+              for {
+                name      /* String       */ <- findName(id)       /* IO[Nothing, String]       */
+                restNames /* List[String] */ <- findNames(restIds) /* IO[Nothing, List[String]] */
+              } yield name :: restNames /* List[String] */
+          }
+        }
+
+        val program: IO[Nothing, Unit] = for {
+          names <- findNames(List(1, 3, 5))
+          _ <- putStrLn(names.toString)
+        } yield ()
 
         def main(args: Array[String]): Unit = {
-          println("Start")
-          RTS.unsafeRun(printHello)
-          println("End")
+          RTS.unsafeRun(program)
         }
       }
     }
 
-    package stateful {
+    package foreach {
       object Main {
-        val randomBetween1And10000: IO[Nothing, Int] = IO.effectTotal(Random.nextInt(10000) + 1)
+        def findName(id: Int): IO[Nothing, String] =
+          IO.succeedLazy(s"Name $id")
+
+        def findNames(ids: List[Int]): IO[Nothing, List[String]] =
+          IO.foreach(ids) { id => findName(id) }
+
+        val program: IO[Nothing, Unit] = for {
+          names <- findNames(List(1, 3, 5))
+          _ <- putStrLn(names.toString)
+        } yield ()
 
         def main(args: Array[String]): Unit = {
-          println("Start")
-          println(RTS.unsafeRun(randomBetween1And10000))
-          println(RTS.unsafeRun(randomBetween1And10000))
-          println("End")
+          RTS.unsafeRun(program)
         }
       }
     }
   }
 
+  package retry {
+    import scalaz.zio.Schedule
+    import scalaz.zio.duration._
+
+    object Main {
+      object NameService {
+        def find(id: Int): IO[Int, String] = for {
+          n <- IO.effectTotal(Random.nextInt())
+          name <- if (n > 0) IO.succeed(s"Name $id") else IO.fail(-1)
+        } yield name
+      }
+
+      val retrySchedule = Schedule.recurs(3) && Schedule.exponential(1.second)
+
+      val program =
+        for {
+          name <- NameService.find(1).retry(retrySchedule)
+          _ <- putStrLn(s"name=$name")
+        } yield ()
+
+      def main(args: Array[String]): Unit = {
+        RTS.unsafeRun(program)
+      }
+    }
+  }
+
+  package resource {
+    object Main {
+      class Resource {
+        def close: IO[Nothing, Unit] = IO.unit
+        def read: IO[Int, String] = IO.succeed("read")
+      }
+
+      object Resource {
+        def open(name: String): IO[Int, Resource] = IO.effectTotal(new Resource)
+      }
+
+      val program: IO[Int, Unit] =
+        IO.bracket(Resource.open("hello"))(_.close) { resource =>
+          for {
+            line <- resource.read
+            _ <- putStrLn(line)
+          } yield ()
+        }
+
+      def main(args: Array[String]): Unit = {
+        RTS.unsafeRun(program)
+      }
+    }
+  }
+
+  package fork {
+    import scalaz.zio.clock.Clock
+
+    object Main {
+      val analyze: IO[Nothing, String] = IO.succeed("Analysis").delay(1.second).provide(Clock.Live)
+      val validate: IO[Nothing, Boolean] = IO.succeed(false)
+
+      val program: IO[Nothing, String] =
+        for {
+          analyzeFiber <- analyze.fork
+          validateFiber <- validate.fork
+          validated <- validateFiber.join
+          _ <- if (validated) IO.unit else analyzeFiber.interrupt
+          analysis <- analyzeFiber.join
+          _ <- putStrLn(analysis)
+        } yield analysis
+
+      def main(args: Array[String]): Unit = {
+        RTS.unsafeRun(program)
+      }
+    }
+  }
+
   package other {
-    package test1 {
-      object Main {
-        def main(args: Array[String]): Unit = {
-          RTS.unsafeRun(IO.fail("Error A"))
-        }
-      }
-    }
-
-    package test2 {
-      object Main {
-        def main(args: Array[String]): Unit = {
-          RTS.unsafeRun(IO.succeedLazy(throw new RuntimeException("Error A")))
-        }
-      }
-    }
-
     package console {
       import scala.annotation.tailrec
 
