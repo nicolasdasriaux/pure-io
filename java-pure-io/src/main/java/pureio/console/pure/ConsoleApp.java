@@ -3,8 +3,8 @@ package pureio.console.pure;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 
-import static pureio.console.pure.Program.*;
-import static pureio.console.pure.Console.*;
+import static pureio.console.pure.Console.getStrLn;
+import static pureio.console.pure.Console.putStrLn;
 
 @SuppressWarnings({"CodeBlock2Expr", "WeakerAccess", "Convert2MethodRef", "Duplicates"})
 public class ConsoleApp {
@@ -27,7 +27,7 @@ public class ConsoleApp {
         return getStrLn()
                 .thenTransform(s -> parseInt(s))
                 .thenChain(maybeInt -> {
-                    return maybeInt.isDefined() ? yield(maybeInt.get()) : /* RECURSE */ getInt();
+                    return maybeInt.isDefined() ? Program.yield(maybeInt.get()) : /* RECURSE */ getInt();
                 });
     }
 
@@ -35,7 +35,7 @@ public class ConsoleApp {
         final String message = String.format("Enter a number between %d and %d", min, max);
         return putStrLn(message).thenChain(__ -> {
             return getInt().thenChain(i -> {
-                return min <= i && i <= max ? yield(i) : /* RECURSE */ getIntBetween(min, max);
+                return min <= i && i <= max ? Program.yield(i) : /* RECURSE */ getIntBetween(min, max);
             });
         });
     }
@@ -72,7 +72,7 @@ public class ConsoleApp {
         switch (choice) {
             case 1: return helloApp.thenTransform(__ -> false);
             case 2: return countdownApp.thenTransform(__ -> false);
-            case 3: return yield(true); // Should exit
+            case 3: return Program.yield(true); // Should exit
             default: throw new IllegalArgumentException("Unexpected choice");
         }
     }
@@ -82,7 +82,7 @@ public class ConsoleApp {
             return getChoice.thenChain(choice -> {
                 return launchMenuItem(choice).thenChain(exit -> {
                     if (exit) {
-                        return yield(Unit.of());
+                        return Program.yield(Unit.of());
                     } else {
                         return /* RECURSE */ mainApp();
                     }
@@ -93,6 +93,6 @@ public class ConsoleApp {
 
     public static void main(String[] args) {
         final Program<Unit> program = mainApp();
-        unsafeRun(program);
+        Program.unsafeRun(program);
     }
 }

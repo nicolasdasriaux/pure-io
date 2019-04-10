@@ -123,3 +123,289 @@ object Calculator {
   }
 }
  ```
+
+---
+
+# Console Program
+
+```java
+interface Program<A> { /* ... */ }
+```
+
+* Describes a **program** performing I/Os on **console**
+* When run, will eventually yield a **result** of type `A`
+* `ConsoleProgram<A>` can be a program that
+  - **reads a line** from console (`GetStrLn`) and then do the rest, 
+  - **prints a line** to console (`PutStrLn`) and the do the rest,
+  - just **yields a result** (`Yield`).
+
+---
+
+# Read Line from Console (`GetStrLn`)
+
+```java
+interface ConsoleProgram<A> {
+    @Value.Immutable
+    abstract class GetStrLn<A> implements ConsoleProgram<A> {
+        @Value.Parameter
+        public abstract Function<String, ConsoleProgram<A>> next();
+
+        public static <A> GetStrLn<A> of(
+                final Function<String, ConsoleProgram<A>> next) {
+            return ImmutableGetStrLn.of(next);
+        }
+    } // ...
+}
+```
+
+---
+
+# Print Line to Console (`PutStrLn`)
+
+```java
+interface ConsoleProgram<A> { // ...
+    @Value.Immutable
+    abstract class PutStrLn<A> implements ConsoleProgram<A> {
+        @Value.Parameter
+        public abstract String line();
+        @Value.Parameter
+        public abstract Supplier<ConsoleProgram<A>> next();
+
+        public static <A> PutStrLn<A> of(final String line,
+                final Supplier<ConsoleProgram<A>> next) {
+            return ImmutablePutStrLn.of(line, next);
+        }
+    } // ...
+}
+```
+
+---
+
+# Yield a Result (`Yield`)
+
+```java
+interface ConsoleProgram<A> { // ...
+    @Value.Immutable
+    abstract class Yield<A> implements ConsoleProgram<A> {
+        @Value.Parameter
+        public abstract A value();
+
+        public static <A> Yield<A> of(final A a) {
+            return ImmutableYield.of(a);
+        }
+    } // ...
+}
+```
+
+---
+
+# Elementary Programs
+
+```java
+interface ConsoleProgram<A> { // ...
+    static ConsoleProgram<String> getStrLn() {
+        return GetStrLn.of(line -> yield(line));
+    }
+
+    static ConsoleProgram<Unit> putStrLn(final String line) {
+        return PutStrLn.of(line, () -> yield(Unit.of()));
+    }
+
+    static <A> ConsoleProgram<A> yield(final A value) {
+        return Yield.of(value);
+    } // ...
+}
+```
+
+---
+
+# A Value Containing Void (`Unit`)
+
+```java
+@Value.Immutable(singleton = true)
+public abstract class Unit {
+    public static Unit of() {
+        return ImmutableUnit.of();
+    }
+}
+```
+
+* Cannot use `Void`
+* Cannot create instances (`private` constructor :worried:)
+* Can just use `null` :imp:
+
+---
+
+# Chaining Programs
+
+```java
+interface ConsoleProgram<A> { // ...
+    default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
+        if (this instanceof GetStrLn) {
+            final GetStrLn<A> getStrLn = (GetStrLn<A>) this;
+            // ...
+        } else if (this instanceof PutStrLn) {
+            final PutStrLn<A> putStrLn = (PutStrLn<A>) this;
+            // ...
+        } else if (this instanceof Yield) {
+            final Yield<A> yield = (Yield<A>) this;
+            // ...
+        } else {
+            throw new IllegalArgumentException("Unexpected Console Program");
+        }
+    } // ...
+}
+```
+
+---
+
+# Chaining After `GetStrLn`
+
+```java
+default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
+    // ...
+        final GetStrLn<A> getStrLn = (GetStrLn<A>) this;
+        final Function<String, ConsoleProgram<A>> next = getStrLn.next();
+
+        final Function<String, ConsoleProgram<B>> chainedNext = line -> {
+            final ConsoleProgram<A> cpa = next.apply(line);
+            final ConsoleProgram<B> cpb = cpa.thenChain(f);
+            return cpb;
+        };
+
+        return GetStrLn.of(chainedNext);
+    // ...
+}
+```
+
+---
+
+# Chaining After `PutStrLn`
+
+```java
+default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
+    // ...
+        final PutStrLn<A> putStrLn = (PutStrLn<A>) this;
+        final String line = putStrLn.line();
+        final Supplier<ConsoleProgram<A>> next = putStrLn.next();
+
+        final Supplier<ConsoleProgram<B>> chainedNext = () -> {
+            final ConsoleProgram<A> cpa = next.get();
+            final ConsoleProgram<B> cpb = cpa.thenChain(f);
+            return cpb;
+        };
+
+        return PutStrLn.of(line, chainedNext);
+    // ...
+}
+```
+
+---
+
+# Chaining After `Yield`
+
+```java
+default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
+    // ...
+        final Yield<A> yield = (Yield<A>) this;
+        final A a = yield.value();
+        final ConsoleProgram<B> cpb = f.apply(a);
+        return cpb;
+    // ...
+}
+```
+
+---
+
+# Transforming Result of Program
+
+```java
+interface ConsoleProgram<A> { // ...
+    default <B> ConsoleProgram<B> thenTransform(final Function<A, B> f) {
+        return this.thenChain(a -> {
+            final B b = f.apply(a);
+            return Yield.of(b);
+        });
+    } // ...
+}
+```
+
+---
+
+# Instantiating a Program
+
+```java
+public class ConsoleApp {
+    public static final ConsoleProgram<Unit> helloApp =
+            putStrLn("What's you name?").thenChain(__ -> {
+                return getStrLn().thenChain(name -> {
+                    return putStrLn("Hello " + name + "!");
+                });
+            });
+    
+    public static void main(String[] args) {
+        final ConsoleProgram<Unit> program = helloApp;
+    }
+}
+```
+
+---
+
+# But Program Does Not Run
+
+```java
+public class ConsoleApp {
+    // ...
+    public static void main(String[] args) {
+        final ConsoleProgram<Unit> program = helloApp;
+        System.out.println(program);
+    }
+}
+```
+
+* Will print something like `PutStrLn{line=What's you name?, next=pureio.console.ConsoleProgram$$Lambda$3/396873410@31221be2}`
+* This is just an **immutable object**, it does no side-effect, it's **pure** :innocent:. 
+* Need an **interpreter** to run!
+
+---
+
+# Interpreting a Program
+
+```java
+interface ConsoleProgram<A> { // ...
+    static <A> A unsafeRun(final ConsoleProgram<A> consoleProgram) {
+        ConsoleProgram<A> current = consoleProgram;
+        do { // Run all steps stack-free even for recursion (trampoline)
+            if (current instanceof GetStrLn) { final GetStrLn<A> getStrLn = (GetStrLn<A>) current;
+                final String line = new Scanner(System.in).nextLine(); // EXECUTE current step
+                current = getStrLn.next().apply(line);                 // GET remaining steps (continuation)
+            } else if (current instanceof PutStrLn) { final PutStrLn<A> putStrLn = (PutStrLn<A>) current;
+                System.out.println(putStrLn.line());                   // EXECUTE current setp
+                current = putStrLn.next().get();                       // GET remaining steps (continuation)
+            } else if (current instanceof Yield) { final Yield<A> yield = (Yield<A>) current;
+                return yield.value();                                  // RETURN result
+            } else {
+                throw new IllegalArgumentException("Unexpected Console Program");
+            }
+        } while (true);
+    }
+}
+```
+
+---
+
+# Running a Program
+
+
+```java
+public class ConsoleApp {
+    // PURE ...
+    public static void main(String[] args) {
+        final ConsoleProgram<Unit> program = helloApp; // PURE
+        unsafeRun(program); // IMPURE!!! But that's OK!
+    }
+}
+```
+
+* Sure, `unsafeRun` call point (**_end of the world_**) is **impure** :imp:... 
+* But the **rest of the code** is fully **pure** :innocent:!

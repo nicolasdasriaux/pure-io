@@ -43,9 +43,9 @@ object NameService {
   private lazy val executorService: ScheduledExecutorService = Executors.newScheduledThreadPool(5)
 
   def getName(id: Int): ZIO[Console with Clock with Random, Nothing, String] = {
-    val everySecond = Schedule.fixed(1.second).jittered
+    val everySecond = Schedule.spaced(1.second).jittered
     val ticks = Schedule.forever.map(tick => s"Tick #$tick for $id")
-    val log = Schedule.logInput(putStrLn)
+    val log = ZSchedule.logInput(putStrLn)
     val ticker = IO.unit.repeat(ticks >>> log <* everySecond)
 
     val task: ZIO[Console with Clock, Nothing, String] =
@@ -100,13 +100,13 @@ object File {
 
   def printAllLines(path: Path): ZIO[Console with Clock with Random, IOException, List[String]] = {
     val collectLines = Schedule.collect[Option[String]].map(_.flatten)
-    val everySecondJittered = Schedule.fixed(500.millis).jittered
+    val everySecondJittered = Schedule.spaced(500.millis).jittered
     val untilEof = Schedule.doUntil[Option[String]](_.isEmpty)
 
-    val value: Schedule[Clock with Random, Option[String], List[String]] = collectLines <* everySecondJittered <* untilEof
+    val value: ZSchedule[Random, Option[String], List[String]] = collectLines <* everySecondJittered <* untilEof
 
     BufferedReader.open(path)
-      .bracket[Clock with Random with Console with Clock, IOException, List[String]](bufferedReader => BufferedReader.close(bufferedReader).catchAll(_ => IO.unit)) { reader =>
+      .bracket(bufferedReader => BufferedReader.close(bufferedReader).catchAll(_ => IO.unit)) { reader =>
         {
           for {
             maybeLine <- BufferedReader.readLine(reader)

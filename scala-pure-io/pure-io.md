@@ -138,73 +138,77 @@ Players are Mary and Paul.
 
 ---
 
-# Console Program
+# Describing a Program
 
 ```java
-interface ConsoleProgram<A> { /* ... */ }
+public abstract class Program<A> { /* ... */ }
 ```
 
-* Describes a **program** performing I/Os on **console**
+* Describes a **program** performing I/Os
 * When run, will eventually yield a **result** of type `A`
-* `ConsoleProgram<A>` can be a program that
-  - **reads a line** from console (`GetStrLn`) and then do the rest, 
-  - **prints a line** to console (`PutStrLn`) and the do the rest,
-  - just **yields a result** (`Yield`).
 
 ---
 
-# Read Line from Console (`GetStrLn`)
+# Program As Immutable Object
 
 ```java
-interface ConsoleProgram<A> {
-    @Value.Immutable
-    abstract class GetStrLn<A> implements ConsoleProgram<A> {
-        @Value.Parameter
-        public abstract Function<String, ConsoleProgram<A>> next();
+@Value.Immutable
+public abstract class Program<A> { // ...
+    @Value.Parameter
+    public abstract Supplier<A> unsafeAction();
 
-        public static <A> GetStrLn<A> of(
-                final Function<String, ConsoleProgram<A>> next) {
-            return ImmutableGetStrLn.of(next);
-        }
+    public static <A> Program<A> of(final Supplier<A> unsafeAction) {
+        return ImmutableProgram.of(unsafeAction);
+    } // ...
+}
+```
+---
+
+# Program Yielding a Value
+
+```java
+@Value.Immutable
+public abstract class Program<A> { // ...
+    public static <A> Program<A> yield(final A a) {
+        return Program.of(() -> a);
     } // ...
 }
 ```
 
 ---
 
-# Print Line to Console (`PutStrLn`)
+# Chaining Programs
 
 ```java
-interface ConsoleProgram<A> { // ...
-    @Value.Immutable
-    abstract class PutStrLn<A> implements ConsoleProgram<A> {
-        @Value.Parameter
-        public abstract String line();
-        @Value.Parameter
-        public abstract Supplier<ConsoleProgram<A>> next();
+@Value.Immutable
+public abstract class Program<A> { // ...
+    public <B> Program<B> thenChain(final Function<A, Program<B>> f) {
+        final Program<A> pa = this;
 
-        public static <A> PutStrLn<A> of(final String line,
-                final Supplier<ConsoleProgram<A>> next) {
-            return ImmutablePutStrLn.of(line, next);
-        }
+        return Program.of(() -> {
+            final A a = pa.unsafeAction().get();
+            final Program<B> pb = f.apply(a);
+            final B b = pb.unsafeAction().get();
+            return b;
+        });
     } // ...
 }
 ```
 
 ---
 
-# Yield a Result (`Yield`)
+# Transforming Result of Program
 
 ```java
-interface ConsoleProgram<A> { // ...
-    @Value.Immutable
-    abstract class Yield<A> implements ConsoleProgram<A> {
-        @Value.Parameter
-        public abstract A value();
+@Value.Immutable
+public abstract class Program<A> { // ...
+    public <B> Program<B> thenTransform(final Function<A, B> f) {
+        final Program<A> pa = this;
 
-        public static <A> Yield<A> of(final A a) {
-            return ImmutableYield.of(a);
-        }
+        return pa.thenChain(a -> {
+            final B b = f.apply(a);
+            return Program.yield(b);
+        });
     } // ...
 }
 ```
@@ -214,18 +218,20 @@ interface ConsoleProgram<A> { // ...
 # Elementary Programs
 
 ```java
-interface ConsoleProgram<A> { // ...
-    static ConsoleProgram<String> getStrLn() {
-        return GetStrLn.of(line -> yield(line));
+public class Console {
+    public static Program<String> getStrLn() {
+        return Program.of(() -> {
+            final String line = new Scanner(System.in).nextLine();
+            return line;
+        });
     }
 
-    static ConsoleProgram<Unit> putStrLn(final String line) {
-        return PutStrLn.of(line, () -> yield(Unit.of()));
+    public static Program<Unit> putStrLn(final String line) {
+        return Program.of(() -> {
+            System.out.println(line);
+            return Unit.of();
+        });
     }
-
-    static <A> ConsoleProgram<A> yield(final A value) {
-        return Yield.of(value);
-    } // ...
 }
 ```
 
@@ -248,107 +254,11 @@ public abstract class Unit {
 
 ---
 
-# Chaining Programs
-
-```java
-interface ConsoleProgram<A> { // ...
-    default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
-        if (this instanceof GetStrLn) {
-            final GetStrLn<A> getStrLn = (GetStrLn<A>) this;
-            // ...
-        } else if (this instanceof PutStrLn) {
-            final PutStrLn<A> putStrLn = (PutStrLn<A>) this;
-            // ...
-        } else if (this instanceof Yield) {
-            final Yield<A> yield = (Yield<A>) this;
-            // ...
-        } else {
-            throw new IllegalArgumentException("Unexpected Console Program");
-        }
-    } // ...
-}
-```
-
----
-
-# Chaining After `GetStrLn`
-
-```java
-default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
-    // ...
-        final GetStrLn<A> getStrLn = (GetStrLn<A>) this;
-        final Function<String, ConsoleProgram<A>> next = getStrLn.next();
-
-        final Function<String, ConsoleProgram<B>> chainedNext = line -> {
-            final ConsoleProgram<A> cpa = next.apply(line);
-            final ConsoleProgram<B> cpb = cpa.thenChain(f);
-            return cpb;
-        };
-
-        return GetStrLn.of(chainedNext);
-    // ...
-}
-```
-
----
-
-# Chaining After `PutStrLn`
-
-```java
-default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
-    // ...
-        final PutStrLn<A> putStrLn = (PutStrLn<A>) this;
-        final String line = putStrLn.line();
-        final Supplier<ConsoleProgram<A>> next = putStrLn.next();
-
-        final Supplier<ConsoleProgram<B>> chainedNext = () -> {
-            final ConsoleProgram<A> cpa = next.get();
-            final ConsoleProgram<B> cpb = cpa.thenChain(f);
-            return cpb;
-        };
-
-        return PutStrLn.of(line, chainedNext);
-    // ...
-}
-```
-
----
-
-# Chaining After `Yield`
-
-```java
-default <B> ConsoleProgram<B> thenChain(final Function<A, ConsoleProgram<B>> f) {
-    // ...
-        final Yield<A> yield = (Yield<A>) this;
-        final A a = yield.value();
-        final ConsoleProgram<B> cpb = f.apply(a);
-        return cpb;
-    // ...
-}
-```
-
----
-
-# Transforming Result of Program
-
-```java
-interface ConsoleProgram<A> { // ...
-    default <B> ConsoleProgram<B> thenTransform(final Function<A, B> f) {
-        return this.thenChain(a -> {
-            final B b = f.apply(a);
-            return Yield.of(b);
-        });
-    } // ...
-}
-```
-
----
-
 # Instantiating a Program
 
 ```java
 public class ConsoleApp {
-    public static final ConsoleProgram<Unit> helloApp =
+    public static final Program<Unit> helloApp =
             putStrLn("What's you name?").thenChain(__ -> {
                 return getStrLn().thenChain(name -> {
                     return putStrLn("Hello " + name + "!");
@@ -356,7 +266,7 @@ public class ConsoleApp {
             });
     
     public static void main(String[] args) {
-        final ConsoleProgram<Unit> program = helloApp;
+        final Program<Unit> program = helloApp;
     }
 }
 ```
@@ -369,13 +279,13 @@ public class ConsoleApp {
 public class ConsoleApp {
     // ...
     public static void main(String[] args) {
-        final ConsoleProgram<Unit> program = helloApp;
+        final Program<Unit> program = helloApp;
         System.out.println(program);
     }
 }
 ```
 
-* Will print something like `PutStrLn{line=What's you name?, next=pureio.console.ConsoleProgram$$Lambda$3/396873410@31221be2}`
+* Will print something like `Program{unsafeAction=pureio.console.pure.Program$$Lambda$3/511754216@5197848c}`
 * This is just an **immutable object**, it does no side-effect, it's **pure** :innocent:. 
 * Need an **interpreter** to run!
 
@@ -384,22 +294,12 @@ public class ConsoleApp {
 # Interpreting a Program
 
 ```java
-interface ConsoleProgram<A> { // ...
-    static <A> A unsafeRun(final ConsoleProgram<A> consoleProgram) {
-        ConsoleProgram<A> current = consoleProgram;
-        do { // Run all steps stack-free even for recursion (trampoline)
-            if (current instanceof GetStrLn) { final GetStrLn<A> getStrLn = (GetStrLn<A>) current;
-                final String line = new Scanner(System.in).nextLine(); // EXECUTE current step
-                current = getStrLn.next().apply(line);                 // GET remaining steps (continuation)
-            } else if (current instanceof PutStrLn) { final PutStrLn<A> putStrLn = (PutStrLn<A>) current;
-                System.out.println(putStrLn.line());                   // EXECUTE current setp
-                current = putStrLn.next().get();                       // GET remaining steps (continuation)
-            } else if (current instanceof Yield) { final Yield<A> yield = (Yield<A>) current;
-                return yield.value();                                  // RETURN result
-            } else {
-                throw new IllegalArgumentException("Unexpected Console Program");
-            }
-        } while (true);
+@Value.Immutable
+public abstract class Program<A> {
+    // ...
+
+    public static <A> A unsafeRun(final Program<A> program) {
+        return program.unsafeAction().get();
     }
 }
 ```
@@ -408,13 +308,12 @@ interface ConsoleProgram<A> { // ...
 
 # Running a Program
 
-
 ```java
 public class ConsoleApp {
     // PURE ...
     public static void main(String[] args) {
-        final ConsoleProgram<Unit> program = helloApp; // PURE
-        unsafeRun(program); // IMPURE!!! But that's OK!
+        final Program<Unit> program = helloApp; // PURE
+        Program.unsafeRun(program); // IMPURE!!! But that's OK!
     }
 }
 ```
@@ -427,20 +326,20 @@ public class ConsoleApp {
 # Counting Down
 
 ```java
-    public static final ConsoleProgram<Unit> countdownApp =
-            getIntBetween(10, 100000).thenChain(n -> {
-                return countdown(n);
-            });
+public static final Program<Unit> countdownApp =
+        getIntBetween(10, 100000).thenChain(n -> {
+            return countdown(n);
+        });
 
-    public static ConsoleProgram<Unit> countdown(final int n) {
-        if (n == 0) {
-            return putStrLn("BOOM!!!");
-        } else {
-            return putStrLn(Integer.toString(n)).thenChain(__ -> {
-                return /* RECURSE */ countdown(n - 1);
-            });
-        }
+public static Program<Unit> countdown(final int n) {
+    if (n == 0) {
+        return putStrLn("BOOM!!!");
+    } else {
+        return putStrLn(Integer.toString(n)).thenChain(__ -> {
+            return /* RECURSE */ countdown(n - 1);
+        });
     }
+}
 ```
 
 ---
@@ -448,13 +347,13 @@ public class ConsoleApp {
 # Diplaying Menu and Getting Choice
 
 ```java
-public static final ConsoleProgram<Unit> displayMenu =
+public static final Program<Unit> displayMenu =
         putStrLn("Menu")
                 .thenChain(__ -> putStrLn("1) Hello"))
                 .thenChain(__ -> putStrLn("2) Countdown"))
                 .thenChain(__ -> putStrLn("3) Exit"));
 
-public static final ConsoleProgram<Integer> getChoice =
+public static final Program<Integer> getChoice =
         getIntBetween(1, 3);
 ```
 
@@ -463,11 +362,11 @@ public static final ConsoleProgram<Integer> getChoice =
 # Launching Menu Item
 
 ```java
-public static ConsoleProgram<Boolean> launchMenuItem(final int choice) {
+public static Program<Boolean> launchMenuItem(final int choice) {
     switch (choice) {
         case 1: return helloApp.thenTransform(__ -> false);
         case 2: return countdownApp.thenTransform(__ -> false);
-        case 3: return yield(true); // Should exit
+        case 3: return Program.yield(true); // Should exit
         default: throw new IllegalArgumentException("Unexpected choice");
     }
 }
@@ -478,12 +377,12 @@ public static ConsoleProgram<Boolean> launchMenuItem(final int choice) {
 # Looping over Menu
 
 ```java
-public static ConsoleProgram<Unit> mainApp() {
+public static Program<Unit> mainApp() {
     return displayMenu.thenChain(__ -> {
         return getChoice.thenChain(choice -> {
             return launchMenuItem(choice).thenChain(exit -> {
                 if (exit) {
-                    return yield(Unit.of());
+                    return Program.yield(Unit.of());
                 } else {
                     return /* RECURSE */ mainApp();
                 }
@@ -516,19 +415,19 @@ public static Option<Integer> parseInt(final String s) {
 # Getting Integer from Console
 
 ```java
-public static ConsoleProgram<Integer> getInt() {
+public static Program<Integer> getInt() {
     return getStrLn()
             .thenTransform(s -> parseInt(s))
             .thenChain(maybeInt -> {
-                return maybeInt.isDefined() ? yield(maybeInt.get()) : /* RECURSE */ getInt();
+                return maybeInt.isDefined() ? Program.yield(maybeInt.get()) : /* RECURSE */ getInt();
             });
 }
 
-public static ConsoleProgram<Integer> getIntBetween(final int min, final int max) {
+public static Program<Integer> getIntBetween(final int min, final int max) {
     final String message = String.format("Enter a number between %d and %d", min, max);
     return putStrLn(message).thenChain(__ -> {
         return getInt().thenChain(i -> {
-            return min <= i && i <= max ? yield(i) : /* RECURSE */ getIntBetween(min, max);
+            return min <= i && i <= max ? Program.yield(i) : /* RECURSE */ getIntBetween(min, max);
         });
     });
 }
@@ -539,11 +438,10 @@ public static ConsoleProgram<Integer> getIntBetween(final int min, final int max
 # Just a Toy
 
 * What's **good** :thumbsup:
-  - Stack safe including with recursion
   - Rather efficient
   - Unlimited refactorings
 * What's **not so good** :thumbsdown:
-  - Not general enough, only console programs
+  - Not stack safe
   - Nesting can be annoying (extract variables and methods!)
   - Not testable
 

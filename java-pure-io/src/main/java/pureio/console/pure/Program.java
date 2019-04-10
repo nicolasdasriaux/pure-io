@@ -10,16 +10,12 @@ public abstract class Program<A> {
     @Value.Parameter
     public abstract Supplier<A> unsafeAction();
 
-    public static <A> Program<A> of(final Supplier<A> unsafeRun) {
-        return ImmutableProgram.of(unsafeRun);
+    public static <A> Program<A> of(final Supplier<A> unsafeAction) {
+        return ImmutableProgram.of(unsafeAction);
     }
 
     public static <A> Program<A> yield(final A a) {
-        return of(() -> a);
-    }
-
-    public static <A> A unsafeRun(final Program<A> program) {
-        return program.unsafeAction().get();
+        return Program.of(() -> a);
     }
 
     public <B> Program<B> thenChain(final Function<A, Program<B>> f) {
@@ -38,7 +34,11 @@ public abstract class Program<A> {
 
         return pa.thenChain(a -> {
             final B b = f.apply(a);
-            return Program.of(() -> b);
+            return Program.yield(b);
         });
+    }
+
+    public static <A> A unsafeRun(final Program<A> program) {
+        return program.unsafeAction().get();
     }
 }
