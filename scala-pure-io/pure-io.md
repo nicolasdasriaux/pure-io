@@ -49,7 +49,7 @@ slidenumbers: true
 
 # Console Operations
 
-```scala
+```java
 public class Console {
     public static String getStrLn() {
         return new Scanner(System.in).nextLine();
@@ -528,7 +528,7 @@ val failure: IO[String, Nothing] = IO.fail("Failure")
 val exceptionFailure: IO[IllegalStateException, Nothing] =
   IO.fail(new IllegalStateException("Failure"))
 // Error can be an exception (but just as a value, never thrown!)
- ```
+```
 
 ---
 
@@ -571,7 +571,7 @@ def getStrLn: IO[IOException, String] = {
 
 # Asynchronous in `IO`
 
-```java
+```scala
 object Calculator {
   private lazy val executor = Executors.newScheduledThreadPool(5)
 
@@ -588,7 +588,7 @@ object Calculator {
 
 # Asynchronous, Interruptible in `IO`
 
-```java
+```scala
 object Calculator {
   private lazy val executor = Executors.newScheduledThreadPool(5)
 
