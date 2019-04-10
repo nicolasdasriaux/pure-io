@@ -42,7 +42,7 @@ package pureio {
         // Side-effecting code prints a line,
         // and returns void (Unit).
         // It can never fail (Nothing).
-        IO.effectTotal(/* () => */ scala.Console.println(line))
+        IO.effectTotal(/* () => */ Console.println(line))
       }
 
       def getStrLn: IO[IOException, String] = {

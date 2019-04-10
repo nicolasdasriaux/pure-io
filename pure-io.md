@@ -218,7 +218,7 @@ public abstract class Program<A> { // ...
 
 ---
 
-# Elementary Programs
+# Elementary `Console` Programs
 
 ```java
 public class Console {
@@ -546,7 +546,7 @@ def putStrLn(line: String): IO[Nothing, Unit] = {
   // Side-effecting code prints a line,
   // and returns void (Unit).
   // It can never fail (Nothing).
-  IO.effectTotal(/* () => */ scala.Console.println(line))
+  IO.effectTotal(/* () => */ Console.println(line))
 }
 ```
 
@@ -837,7 +837,7 @@ def findNames(ids: List[Int]): IO[Nothing, List[String]] =
 
 * Recursion can be hard to read
 * Prefer using simpler alternatives whenever possible
-  - `IO.foreach`, `IO.collectAll`, `IO.reduceAllPar`, `IO.mergeAll`
+  - `IO.foreach`, `IO.collectAll`, `IO.reduceAll`, `IO.mergeAll`
   - Or `IO.foreachPar`, `IO.collectAllPar`, `IO.reduceAllPar`, `IO.mergeAllPar`
     in **parallel** :thumbsup:
 
