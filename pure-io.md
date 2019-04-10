@@ -134,7 +134,7 @@ Players are Mary and Paul.
 
 ---
 
-# Building a Pure Program<br>From The Ground Up
+# Building a Pure Program<br>from the Ground Up
 ## in Java with _Immutables_ and _Vavr_
 
 ---
@@ -150,7 +150,7 @@ public abstract class Program<A> { /* ... */ }
 
 ---
 
-# Program As Immutable Object
+# Program as Immutable Object
 
 ```java
 @Value.Immutable
@@ -347,7 +347,7 @@ public static Program<Unit> countdown(final int n) {
 
 ---
 
-# Diplaying Menu and Getting Choice
+# Displaying Menu and Getting Choice
 
 ```java
 public static final Program<Unit> displayMenu =
@@ -506,7 +506,7 @@ object HelloWorldApp extends App {
 
 ---
 
-# Success in `IO`
+# Simple Success in `IO`
 
 ```scala
 val success: IO[Nothing, Int] = IO.succeed(42)
@@ -518,7 +518,7 @@ val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
 
 ---
 
-# Failure in `IO`
+# Simple Failure in `IO`
 
 ```scala
 val failure: IO[String, Nothing] = IO.fail("Failure")
@@ -529,6 +529,20 @@ val exceptionFailure: IO[IllegalStateException, Nothing] =
   IO.fail(new IllegalStateException("Failure"))
 // Error can be an exception (but just as a value, never thrown!)
 ```
+
+---
+
+# Wrapping in `IO` as the Great Unifier
+
+* `IO` integrates any kind of IO seamlessly into the same **unified model**.
+* Abstracts over how **success** is returned and **failure** is signaled
+  - Synchronous `return`
+  - Synchronous `throw`
+  - Synchronous `Try` or `Either`
+  - Asynchronous **callback**
+  - Asynchronous `Future`
+* Abstracts over **synchronicity**
+* Abstracts over **interruptibility**
 
 ---
 
@@ -870,7 +884,7 @@ val program: IO[Nothing, Unit] =
 
 ---
 
-# Retrying After Error
+# Retrying after Error
 
 ```scala
 object NameService {
