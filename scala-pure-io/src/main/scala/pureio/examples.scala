@@ -377,7 +377,7 @@ package pureio {
         } yield name
       }
 
-      val retrySchedule = Schedule.recurs(3) && Schedule.exponential(1.second)
+      val retrySchedule = Schedule.recurs(5) && Schedule.exponential(1.second)
 
       val program =
         for {

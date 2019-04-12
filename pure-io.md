@@ -10,11 +10,11 @@ slidenumbers: true
 
 # Previously on Practical Immutability...
 
-* Immutable Classes
-* Immutable Collections and Options
-* Immutable variables
+* Immutable **Classes**
+* Immutable **Collections** and **Options**
+* Immutable **Variables**
 * Expressions
-* Algebraic Data Types (ADT)
+* Algebraic Data Types (**ADT**)
 * Pattern Matching
 
 ---
@@ -34,7 +34,7 @@ slidenumbers: true
 # Referential Transparency
 
 * FP programs are **referentially transparent**.
-  - **Typical refactorings cannot break a working program** :smile:.
+  - **Typical refactorings cannot break a working program** :thumbsup:.
 * Applies to the following refactorings:
   - :wrench: **Extract Variable**
   - :wrench: **Inline Variable**
@@ -276,7 +276,7 @@ public class ConsoleApp {
 
 ---
 
-# But Program Does Not Run
+# But Program Does Not Run :astonished:
 
 ```java
 public class ConsoleApp {
@@ -440,13 +440,13 @@ public static Program<Integer> getIntBetween(final int min, final int max) {
 
 # Just a Toy
 
-* What's **good** :thumbsup:
+* What's **good**
   - Rather efficient
-  - Unlimited refactorings
-* What's **not so good** :thumbsdown:
-  - Not stack safe
+  - Unlimited refactorings :thumbsup:
+* What's **not so good**
+  - Not stack safe :thumbsdown:
   - Nesting can be annoying (extract variables and methods!)
-  - Not testable
+  - Not testable :thumbsdown:
 
 ---
 
@@ -821,8 +821,7 @@ def describeNumber(n: Int): IO[Nothing, Unit] = {
 # Looping with **Recursion** :fearful:
 
 ```scala
-def findName(id: Int): IO[Nothing, String] =
-  IO.succeedLazy(s"Name $id")
+def findName(id: Int): IO[Nothing, String] = ???
 
 def findNames(ids: List[Int]): IO[Nothing, List[String]] = {
   ids match {
@@ -842,8 +841,7 @@ def findNames(ids: List[Int]): IO[Nothing, List[String]] = {
 # Looping with `foreach`
 
 ```scala
-def findName(id: Int): IO[Nothing, String] =
-  IO.succeedLazy(s"Name $id")
+def findName(id: Int): IO[Nothing, String] = ???
 
 def findNames(ids: List[Int]): IO[Nothing, List[String]] =
   IO.foreach(ids) { id => findName(id) }
@@ -891,7 +889,7 @@ object NameService {
   def find(id: Int): IO[Int, String] = ???
 }
 
-val retrySchedule = Schedule.recurs(3) && Schedule.exponential(1.second)
+val retrySchedule = Schedule.recurs(5) && Schedule.exponential(1.second)
 
 val program =
   for {
@@ -927,12 +925,12 @@ val program: IO[Nothing, String] =
 # But There's Much More in _ZIO_
 
 * **Streaming**
-  -  `Stream`, a lazy, concurrent, asynchronous source of values
-  -  `Sink`, a consumer of values from a `Stream`, which may produces a value when it has consumed enough
+  - **`Stream`**, a lazy, concurrent, asynchronous source of values
+  - **`Sink`**, a consumer of values, which may produces a value when it has consumed enough
 * **Software Transactional Memory** (STM)
 * **Low Level Concurrency**
-  * `Promise`, a variable that may be set a single time, and awaited on by many fibers
-  * `Queue`, an asynchronous queue that never blocks
-  * `FiberLocal`, a variable whose value depends on the fiber that accesses it
-  * `Semaphore`, a semaphore
-  * `Ref`, a mutable reference to a value
+  * **`FiberLocal`**, a variable whose value depends on the fiber that accesses it
+  * **`Promise`**, a variable that may be set a single time, and awaited on by many fibers
+  * **`Queue`**, an asynchronous queue that never blocks
+  * **`Ref`**, a mutable reference to a value
+  * **`Semaphore`**, a semaphore

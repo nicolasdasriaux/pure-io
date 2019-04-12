@@ -21,12 +21,14 @@ public abstract class Program<A> {
     public <B> Program<B> thenChain(final Function<A, Program<B>> f) {
         final Program<A> pa = this;
 
-        return Program.of(() -> {
+        final Program<B> pb = Program.of(() -> {
             final A a = pa.unsafeAction().get();
-            final Program<B> pb = f.apply(a);
-            final B b = pb.unsafeAction().get();
+            final Program<B> pb_ = f.apply(a);
+            final B b = pb_.unsafeAction().get();
             return b;
         });
+
+        return pb;
     }
 
     public <B> Program<B> thenTransform(final Function<A, B> f) {
