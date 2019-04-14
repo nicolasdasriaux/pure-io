@@ -186,13 +186,13 @@ public abstract class Program<A> { // ...
 public abstract class Program<A> { // ...
     public <B> Program<B> thenChain(final Function<A, Program<B>> f) {
         final Program<A> pa = this;
-
-        return Program.of(() -> {
+        final Program<B> pb = Program.of(() -> {
             final A a = pa.unsafeAction().get();
-            final Program<B> pb = f.apply(a);
-            final B b = pb.unsafeAction().get();
+            final Program<B> _pb = f.apply(a);
+            final B b = _pb.unsafeAction().get();
             return b;
         });
+        return pb;
     } // ...
 }
 ```
@@ -206,12 +206,12 @@ public abstract class Program<A> { // ...
 public abstract class Program<A> { // ...
     public <B> Program<B> thenTransform(final Function<A, B> f) {
         final Program<A> pa = this;
-
-        return pa.thenChain(a -> {
+        final Program<B> pb = pa.thenChain(a -> {
             final B b = f.apply(a);
-            final Program<B> pb = Program.yield(b);
-            return pb;
+            final Program<B> _pb = Program.yield(b);
+            return _pb;
         });
+        return pb;
     } // ...
 }
 ```
@@ -536,8 +536,7 @@ val exceptionFailure: IO[IllegalStateException, Nothing] =
 
 * `IO` integrates any kind of IO seamlessly into the same **unified model**.
 * Abstracts over how **success** is returned and **failure** is signaled
-  - Synchronous `return`
-  - Synchronous `throw`
+  - Synchronous `return` and  `throw`
   - Synchronous `Try` or `Either`
   - Asynchronous **callback**
   - Asynchronous `Future`
@@ -922,7 +921,7 @@ val program: IO[Nothing, String] =
 
 ---
 
-# But There's Much More in _ZIO_
+# There's Much More in _ZIO_
 
 * **Streaming**
   - **`Stream`**, a lazy, concurrent, asynchronous source of values
