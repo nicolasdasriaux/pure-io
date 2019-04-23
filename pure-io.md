@@ -2,9 +2,9 @@ autoscale: true
 footer: Immutable Pure I/O
 slidenumbers: true
 
-# Immutable
+# Practical
 # [fit] **Pure I/O**
-## [fit] in Java... and in Scala with ZIO
+## [fit] in Java... and in Scala with _ZIO_
 
 ---
 
@@ -473,7 +473,7 @@ public static Program<Integer> getIntBetween(final int min, final int max) {
 # `IO[E, A]`
 
 ```scala
-IO[E, A] // IO<E, A>   E = Error, A = Result
+IO[+E, +A] // IO<E, A>   E = Error, A = Result
 ```
 
 * An immutable object that **describes** a **program performing side-effects**.
