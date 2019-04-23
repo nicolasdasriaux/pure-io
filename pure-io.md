@@ -1,5 +1,5 @@
 autoscale: true
-footer: Immutable Pure I/O
+footer: Practical Pure I/O
 slidenumbers: true
 
 # Practical
