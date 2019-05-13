@@ -438,7 +438,7 @@ public static Program<Integer> getIntBetween(final int min, final int max) {
 
 ---
 
-# Just a Toy
+# Just a Fancy Toy
 
 * What's **good**
   - Easy to reason about with type safety :thumbsup:
@@ -524,13 +524,18 @@ static <A> A unsafeRun(final Program<A> program) {
 
 ---
 
-# There Is a Much Better Way
+# What About Real Life Applications?
 
-* **Asynchronicity**, **concurrency**, **interruptibility**
-* Expressive **error model** with **resiliency**
-* Fully **testable** with dependency injection
-* Easily **debuggable**
-* We can just use _ZIO_ a easy to use Scala library
+* What we could possibly dream of for **real life applications**
+  - Support for **asynchronicity**, **concurrency** and  **interruptibility**
+  - Consistent **error model** (expected vs. unexpected)
+  - **Resiliency** and **resource safety**
+  - Full **testability** with dependency injection
+  - Easy **debugging**
+  - **Performance** and **stack safety**
+  - And still fully functional with **100 % safe refactorings**
+
+* _ZIO_, an easy to use Scala library, gives it to us
 
 ---
 

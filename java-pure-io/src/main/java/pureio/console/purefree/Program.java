@@ -57,7 +57,7 @@ public interface Program<A> {
 
     static <A> A unsafeRun(final Program<A> program) {
         Program<A> current = program;
-        do { // Run all steps stack-free even for recursion (trampoline)
+        do { // Run all steps (mostly) stack-free even for recursion (trampoline)
             if (current instanceof Of) {
                 final Of<A> of = (Of<A>) current;
                 return of.unsafeRun().get();                              // RETURN result
