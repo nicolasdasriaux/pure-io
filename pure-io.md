@@ -19,22 +19,20 @@ slidenumbers: true
 
 ---
 
-# Functional Programming
+# What Functional Programming Is About
 
-* FP is programming with **functions**.
-* Functions are:
+* Functional Programming (FP) is programming with **functions**.
   - **Deterministic**: same arguments implies same result
-  - **Total**: result always available for arguments
+  - **Total**: result always available for arguments, no exception
   - **Pure**: no side-effects, only effect is computing result
   
-* A consequence of FP is **referential transparency**.
+* A benefit of FP is **referential transparency**.
 
 ---
 
-# Referential Transparency
+# What Referential Transparency Brings
 
-* FP programs are **referentially transparent**.
-  - **Typical refactorings cannot break a working program** :thumbsup:.
+* **Typical refactorings cannot break a working program** :thumbsup:.
 * Applies to the following refactorings:
   - :wrench: **Extract Variable**
   - :wrench: **Inline Variable**
@@ -458,17 +456,17 @@ public static Program<Integer> getIntBetween(final int min, final int max) {
 # Describing Operations with an ADT
 
 ```java
-public interface Program<A> { /* ... */
+public interface Program<A> { // ...
     @Value.Immutable abstract class Of<A> implements Program<A> {
-        @Value.Parameter abstract Supplier<A> unsafeRun(); /* ... */
+        @Value.Parameter abstract Supplier<A> unsafeRun(); // ...
     }
     @Value.Immutable abstract class Yield<A> implements Program<A> {
-        @Value.Parameter abstract A value(); /* ... */
+        @Value.Parameter abstract A value(); // ...
     }
     @Value.Immutable abstract class ThenChain<A, B> implements Program<B> {
         @Value.Parameter abstract Program<A> pa();
-        @Value.Parameter abstract Function<A, Program<B>> f(); /* ... */
-    } /* ... */
+        @Value.Parameter abstract Function<A, Program<B>> f(); // ...
+    } // ...
 }
 ```
 
@@ -477,7 +475,7 @@ public interface Program<A> { /* ... */
 # Implementing Same Methods as Before
 
 ```java
-public interface Program<A> { /* ... */
+public interface Program<A> { // ...
     static <A> Program<A> of(final Supplier<A> unsafeRun) {
         return Of.of(unsafeRun);
     }
@@ -489,7 +487,7 @@ public interface Program<A> { /* ... */
     }
     default <B> Program<B> thenTransform(final Function<A, B> f) {
         return ThenChain.of(this, a -> Yield.of(f.apply(a)));
-    } /* ... */
+    } // ...
 }
 ```
 
