@@ -133,7 +133,6 @@ Players are Mary and Paul.
 ---
 
 # Building a Pure Program<br>from the Ground Up
-## in Java with _Immutables_ and _Vavr_
 
 ---
 
