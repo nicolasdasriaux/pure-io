@@ -4,7 +4,7 @@ slidenumbers: true
 
 # Practical
 # [fit] **Pure I/O**
-## in Java with _Immutables_
+## in Java with help of _Immutables_ and _Vavr_
 
 ---
 
