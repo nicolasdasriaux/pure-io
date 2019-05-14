@@ -518,7 +518,8 @@ static <A> A unsafeRun(final Program<A> program) {
 
 ---
 
-# Harder, Better, Faster, Stronger
+> Harder, Better, Faster, Stronger
+-- Daft Punk
 
 ---
 
