@@ -6,7 +6,6 @@ import scalaz.zio._
 import scalaz.zio.clock.Clock
 import scalaz.zio.random.Random
 
-
 object FiberApp extends App {
   def run(args: List[String]): ZIO[Clock with Console, Nothing, Int] =
     program.either.map(_.fold(_ => 1, _ => 0))
@@ -15,13 +14,13 @@ object FiberApp extends App {
     val a: ZIO[Clock with Random with Console, Nothing, Unit] =
       putStrLn("A ")
         .repeat(Schedule.recurs(3) && Schedule.spaced(1.second).jittered)
-        .void
+        .unit
         .delay(4.seconds)
 
     val b: ZIO[Clock with Console, Nothing, Unit] =
       putStrLn(" B")
         .repeat(Schedule.recurs(30) && Schedule.fibonacci(100.millis))
-        .void
+        .unit
 
     val ticker: ZIO[Clock with Console, Nothing, Nothing] =
       putStrLn(".")

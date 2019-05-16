@@ -1,17 +1,14 @@
-import java.io.IOException
-
-import scalaz.zio.duration._
-import scalaz.zio.{DefaultRuntime, IO}
-
-import scala.util.Random
-
 package pureio {
   import pureio.sync.Main._
+  import scalaz.zio._
+  import scalaz.zio.duration._
 
   object RTS extends DefaultRuntime
   case class Point(x: Int, y: Int)
 
   package basic {
+    import java.io.FileNotFoundException
+
     object Main {
       val success: IO[Nothing, Int] = IO.succeed(42)
       val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
@@ -19,18 +16,31 @@ package pureio {
       // Will never fail (Nothing)
       // Will always succeed with result 42 (Int)
 
-      val failure: IO[String, Nothing] = IO.fail("Failure")
+      val failure: IO[String, Nothing] = IO.fail("Failed")
       // Will always fail with error "Failed" (String)
       // will never succeed (Nothing)
 
-      val exceptionFailure: IO[IllegalStateException, Nothing] =
-        IO.fail(new IllegalStateException("Failure"))
+      val exceptionFailure: IO[FileNotFoundException, Nothing] =
+        IO.fail(new FileNotFoundException("Expected"))
       // Error can be an exception (but just as a value, never thrown!)
+
+      val death: IO[Nothing, Nothing] =
+        IO.die(new IndexOutOfBoundsException("Unexpected"))
+
+      val deathMessage: IO[Nothing, Nothing] =
+        IO.dieMessage("Unexpected")
+
+      // Will always die with error not reflected in type (Nothing)
+      // will never succeed (Nothing)
     }
   }
 
   package sync {
+    import java.io.IOException
+    import scala.util.Random
+
     object Main {
+
       def randomBetween(min: Int, max: Int): IO[Nothing, Int] = {
         // Side-effecting code updates the state of a random generator,
         // and returns a random number (Int).
@@ -48,9 +58,9 @@ package pureio {
       def getStrLn: IO[IOException, String] = {
         // Side-effecting code reads from keyboard until a line is available,
         // and returns the line (String).
-        // It might throw an IOException. IO catches exception,
-        // and translates it into a failure containing the error (IOException).
-        // IOException is neutralized, it is NOT propagated but just used as a value.
+
+        // In case an IOException is thrown, catch it and fail with the exception (not thrown)
+        // or die in case of any other exception.
         IO.effect(/* () => */ scala.io.StdIn.readLine()).refineOrDie {
           case e: IOException => e
         }
@@ -62,30 +72,79 @@ package pureio {
     import java.util.concurrent.{Executors, TimeUnit}
 
     package non_interruptible {
-      object Calculator {
+      object Main {
         private lazy val executor = Executors.newScheduledThreadPool(5)
 
-        def add(a: Int, b: Int): IO[Nothing, Int] = {
-          IO.effectAsync { (callback: IO[Nothing, Int] => Unit) =>
-            val completion: Runnable = { () => callback(IO.succeedLazy(a + b)) }
-            executor.schedule(completion, 5, TimeUnit.SECONDS)
+        def addAsync(a: Int, b: Int, onSuccess: Int => Unit, onFailure: String => Unit): Unit = {
+          val completion: Runnable = if (a > 0 && b > 0) { () => onSuccess(a + b) } else { () => onFailure("Negative a or b")}
+          executor.schedule(completion, 5, TimeUnit.SECONDS)
+        }
+
+        def add(a: Int, b: Int): IO[String, Int] = {
+          IO.effectAsync { (callback: IO[String, Int] => Unit) =>
+            addAsync(a, b,
+              result => callback(IO.succeed(result)),
+              error => callback(IO.fail(error))
+            )
           }
+        }
+
+        def main(args: Array[String]): Unit = {
+          println(RTS.unsafeRun(add(5, 7)))
         }
       }
     }
 
     package interruptible {
-
-      object Calculator {
+      object Main {
         private lazy val executor = Executors.newScheduledThreadPool(5)
 
-        def add(a: Int, b: Int): IO[Nothing, Int] = {
-          IO.effectAsyncInterrupt { (callback: IO[Nothing, Int] => Unit) =>
-            val complete: Runnable = { () => callback(IO.succeedLazy(a + b)) }
-            val eventualResult = executor.schedule(complete, 5, TimeUnit.SECONDS)
-            val canceler = IO.effectTotal(eventualResult.cancel(false))
-            Left(canceler)
+        def addAsync(a: Int, b: Int, onSuccess: Int => Unit, onFailure: String => Unit): () => Unit = {
+          val completion: Runnable = if (a > 0 && b > 0) { () => onSuccess(a + b) } else { () => onFailure("Negative a or b")}
+          val eventualResult = executor.schedule(completion, 5, TimeUnit.SECONDS)
+
+          () => eventualResult.cancel(false)
+        }
+
+        def add(a: Int, b: Int): IO[String, Int] = {
+          IO.effectAsyncInterrupt { (callback: IO[String, Int] => Unit) =>
+            val canceler = addAsync(a, b,
+              result => callback(IO.succeed(result)),
+              error => callback(IO.fail(error))
+            )
+
+            Left(IO.effectTotal(canceler()))
           }
+        }
+
+        def main(args: Array[String]): Unit = {
+          val program = for {
+            resultFiber <- add(5, 7).fork
+            _ <- resultFiber.interrupt.delay(7.second).fork
+            result <- resultFiber.join
+          } yield result
+
+          println(RTS.unsafeRun(program))
+        }
+      }
+    }
+
+    package future {
+      import scala.concurrent._
+
+      object Main {
+        def addAsync(a: Int, b: Int)(implicit ec: ExecutionContext): Future[Int] = {
+          Future.successful(a + b)
+        }
+
+        def add(a: Int, b: Int): IO[Throwable, Int] = {
+          IO.fromFuture { implicit ec =>
+            addAsync(a, b)
+          }
+        }
+
+        def main(args: Array[String]): Unit = {
+          println(RTS.unsafeRun(add(5, 7)))
         }
       }
     }
@@ -192,6 +251,8 @@ package pureio {
     package too_many_maps_and_flatmaps {
       package map_flatmap {
         object Main {
+          import java.io.IOException
+
           val welcomeNewPlayer: IO[IOException, Unit] =
             putStrLn("What's your name?").flatMap { _ =>
               getStrLn.flatMap { name =>
@@ -212,6 +273,8 @@ package pureio {
       }
 
       package for_comprehension {
+        import java.io.IOException
+
         object Main {
           val welcomeNewPlayer: IO[IOException, Unit] =
             for {
@@ -234,6 +297,8 @@ package pureio {
   package for_comprehension_anatomy {
     package types {
       object Main {
+        import scala.util.Random
+
         case class Point(x: Int, y: Int)
 
         def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.effectTotal(Random.nextInt(max - min) + min)
@@ -257,19 +322,21 @@ package pureio {
     }
 
     package scopes {
+      import scala.util.Random
+
       object Main {
         def randomBetween(min: Int, max: Int): IO[Nothing, Int] = IO.effectTotal(Random.nextInt(max - min) + min)
 
         val printRandomPoint: IO[Nothing, Point] = {
           for {
-            x <- randomBetween(0, 10)            /*  x                */
+            x <- randomBetween(0, 10)                  /*  x                */
             _ <- putStrLn(s"x=$x")               /*  O                */
-            y <- randomBetween(0, 10)            /*  |    y           */
+            y <- randomBetween(0, 10)                  /*  |    y           */
             _ <- putStrLn(s"y=$y")               /*  |    O           */
-            point = Point(x, y)                  /*  O    O    point  */
+            point = Point(x, y)                        /*  O    O    point  */
             _ <- putStrLn(s"point.x=${point.x}") /*  |    |    O      */
             _ <- putStrLn(s"point.y=${point.y}") /*  |    |    O      */
-          } yield point                          /*  |    |    O      */
+          } yield point                                /*  |    |    O      */
         }
 
         def main(args: Array[String]): Unit = {
@@ -366,15 +433,16 @@ package pureio {
   }
 
   package retry {
-    import scalaz.zio.Schedule
-    import scalaz.zio.duration._
+    import scala.util.Random
 
     object Main {
       object NameService {
-        def find(id: Int): IO[Int, String] = for {
-          n <- IO.effectTotal(Random.nextInt())
-          name <- if (n > 0) IO.succeed(s"Name $id") else IO.fail(-1)
-        } yield name
+        def find(id: Int): IO[Int, String] =  {
+          for {
+            n <- IO.effectTotal(Random.nextInt())
+            name <- if (n > 0) IO.succeed(s"Name $id") else IO.fail(-1)
+          } yield name
+        }
       }
 
       val retrySchedule = Schedule.recurs(5) && Schedule.exponential(1.second)
@@ -432,6 +500,35 @@ package pureio {
           analysis <- analyzeFiber.join
           _ <- putStrLn(analysis)
         } yield analysis
+
+      def main(args: Array[String]): Unit = {
+        RTS.unsafeRun(program)
+      }
+    }
+  }
+
+  package environment {
+    object Main {
+      import java.util.concurrent.TimeUnit
+
+      import scalaz.zio.{clock, console, random, system}
+      import scalaz.zio.clock.Clock
+      import scalaz.zio.console.Console
+      import scalaz.zio.random.Random
+      import scalaz.zio.system.System
+
+      val program: ZIO[System with Clock with Random with Console, Throwable, Unit] = for {
+        randomNumber <- random.nextInt(10)
+        maybeJavaVersion <- system.property("java.version")
+        millisSinceEpoch <- clock.currentTime(TimeUnit.MILLISECONDS)
+
+        _ <- ZIO.foreach(maybeJavaVersion) { javaVersion =>
+          putStrLn(s"Java Version is $javaVersion")
+        }
+
+        _ <- console.putStrLn(s"Milliseconds since epoch is $millisSinceEpoch")
+        _ <- console.putStrLn(s"Random number is $randomNumber")
+      } yield ()
 
       def main(args: Array[String]): Unit = {
         RTS.unsafeRun(program)
@@ -499,6 +596,55 @@ package pureio {
               _ <- countdown(n - 1)
             } yield ()
         }
+      }
+    }
+  }
+
+  package experiment {
+    import java.io.FileNotFoundException
+    import java.nio.file.{Files, Paths}
+    import scala.util.Random
+
+    object Main {
+      import scala.collection.JavaConverters._
+
+      // UIO[-R, +E, +A]
+
+      val successIO: UIO[Int] = ZIO.succeed(42)
+      val successLazyIO: UIO[Int] = ZIO.succeedLazy(40 + 2)
+
+      val failureIO: IO[FileNotFoundException, Nothing] = ZIO.fail(new FileNotFoundException("expectable"))
+      val deathIO: UIO[Nothing] = ZIO.die(new IndexOutOfBoundsException("unexpectable"))
+
+      val randomIntIO: UIO[Int] = ZIO.effectTotal(/* () => */ Random.nextInt(42))
+      val readFileIO: Task[Seq[String]] = ZIO.effect(/* () => */ Files.readAllLines(Paths.get("build.sbt")).asScala.toList)
+
+      val readFile_IO: IO[FileNotFoundException, List[String]] = ZIO
+        .effect(/* () => */ Files.readAllLines(Paths.get("build___.sbt")).asScala.toList)
+        .refineOrDie {
+          case ex: FileNotFoundException => ex
+        }
+
+      {
+        // trait Cause[+E]
+        val failureCause: Exit.Cause[FileNotFoundException] = Exit.Cause.fail(new FileNotFoundException("expectable"))
+        val deathCause: Exit.Cause[Nothing] = Exit.Cause.die(new IndexOutOfBoundsException("unexpectable"))
+        val interruptionCause: Exit.Cause[Nothing] = Exit.Cause.interrupt
+
+        val failureExit: Exit[FileNotFoundException, Nothing] = Exit.halt(failureCause)
+      }
+
+      {
+        // trait Exit[+E, +A]
+        val successExit: Exit[Nothing, Int] = Exit.succeed(42)
+
+        val failureExit: Exit[FileNotFoundException, Nothing] = Exit.fail(new FileNotFoundException("expectable"))
+        val deathExit: Exit[Nothing, Nothing] = Exit.die(new IndexOutOfBoundsException("unexpectable"))
+        val interruptionExit: Exit[Nothing, Nothing] = Exit.interrupt
+      }
+
+      def main(args: Array[String]): Unit = {
+        RTS.unsafeRun(failureIO.run.flatMap(l => putStrLn(l.toString)))
       }
     }
   }

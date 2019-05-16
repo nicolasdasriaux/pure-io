@@ -26,15 +26,16 @@ slidenumbers: true
 # `IO[E, A]`
 
 ```scala
-IO[+E, +A] // IO<E, A>   E = Error, A = Result
+IO[+E, +A] // IO<E, A>   E = error, A = Result
 ```
 
 * An immutable object that **describes** a **program performing side-effects**.
 * An `IO` does nothing, it's just a **value** holding a program.
 * It must be interpreted by a **runtime system** or **RTS**
 * Only when **run** by the RTS, it will either
-    - fail with an **error** of type **`E`**,
-    - or eventually produce a **result** of type **`A`**.
+    - **succeed** producing a **result** of type **`A`**,
+    - or **fail** with an **error** of type **`E`**,
+    - or **die** with an unexpected error.
 
 ---
 
@@ -55,11 +56,11 @@ object HelloWorldApp extends App {
 
 ---
 
-# Wrapping in `IO`
+# Simple `IO`
 
 ---
 
-# Simple Success in `IO`
+# Success in `IO`
 
 ```scala
 val success: IO[Nothing, Int] = IO.succeed(42)
@@ -71,28 +72,61 @@ val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
 
 ---
 
-# Simple Failure in `IO`
+# Error Model
+
+* `Fail`, **expected** error
+  - **Domain** error, **business** error, transient error, anticipated error
+  - Reflected in type as `E`
+
+* `Die`, **unexpected** error
+  - **System** error, **fatal** error, defect, unantipated error
+  - Not reflected in type (`Nothing`)
+
+---
+
+# Failure in `IO`
 
 ```scala
-val failure: IO[String, Nothing] = IO.fail("Failure")
+val failure: IO[String, Nothing] = IO.fail("Failed")
 // Will always fail with error "Failed" (String)
 // will never succeed (Nothing)
 
-val exceptionFailure: IO[IllegalStateException, Nothing] =
-  IO.fail(new IllegalStateException("Failure"))
+val exceptionFailure: IO[FileNotFoundException, Nothing] =
+  IO.fail(new FileNotFoundException("Expected"))
 // Error can be an exception (but just as a value, never thrown!)
 ```
+
+---
+
+# Death in `IO`
+
+```scala
+val death: IO[Nothing, Nothing] =
+  IO.die(new IndexOutOfBoundsException("Unexpected"))
+
+val deathMessage: IO[Nothing, Nothing] =
+  IO.dieMessage("Unexpected")
+
+// Will always die with error not reflected in type (Nothing)
+// will never succeed (Nothing)
+```
+
+---
+
+# Wrapping in `IO`
 
 ---
 
 # Wrapping in `IO` as the Great Unifier
 
 * `IO` integrates any kind of IO seamlessly into the same **unified model**.
+
 * Abstracts over how **success** is returned and **failure** is signaled
   - Synchronous `return` and  `throw`
   - Synchronous `Try` or `Either`
   - Asynchronous **callback**
   - Asynchronous `Future`
+
 * Abstracts over **synchronicity**
 * Abstracts over **interruptibility**
 
@@ -124,10 +158,10 @@ def putStrLn(line: String): IO[Nothing, Unit] = {
 def getStrLn: IO[IOException, String] = {
   // Side-effecting code reads from keyboard until a line is available,
   // and returns the line (String).
-  // It might throw an IOException. IO catches exception,
-  // and translates it into a failure containing the error (IOException).
-  // IOException is neutralized, it is NOT propagated but just used as a value.
-  IO.effect(/* () => */ scala.io.StdIn.readLine()).refineOrDie {
+
+  // In case an IOException is thrown, catch it and fail with the exception (not thrown)
+  // or die in case of any other exception.
+  IO.effect(/* () => */ StdIn.readLine()).refineOrDie {
     case e: IOException => e
   }
 }
@@ -135,36 +169,55 @@ def getStrLn: IO[IOException, String] = {
 
 ---
 
-# Asynchronous in `IO`
+# Asynchronous, Callback-Based in `IO`
 
 ```scala
-object Calculator {
-  private lazy val executor = Executors.newScheduledThreadPool(5)
+def addAsync(a: Int, b: Int,
+  onSuccess: Int => Unit,
+  onFailure: String => Unit
+): Unit = ???
 
-  def add(a: Int, b: Int): IO[Nothing, Int] = {
-    IO.effectAsync { (callback: IO[Nothing, Int] => Unit) =>
-      val completion: Runnable = { () => callback(IO.succeedLazy(a + b)) }
-      executor.schedule(completion, 5, TimeUnit.SECONDS)
-    }
+def add(a: Int, b: Int): IO[String, Int] = {
+  IO.effectAsync { (callback: IO[String, Int] => Unit) =>
+    addAsync(a, b,
+      result => callback(IO.succeed(result)),
+      error => callback(IO.fail(error))
+    )
   }
 }
 ```
 
 ---
 
-# Asynchronous, Interruptible in `IO`
+# [fit] Interruptible, Asynchronous, Callback-Based in `IO`
 
 ```scala
-object Calculator {
-  private lazy val executor = Executors.newScheduledThreadPool(5)
+def addAsync(a: Int, b: Int,
+  onSuccess: Int => Unit,
+  onFailure: String => Unit
+): () => Unit = ???
 
-  def add(a: Int, b: Int): IO[Nothing, Int] = {
-    IO.effectAsyncInterrupt { (callback: IO[Nothing, Int] => Unit) =>
-      val complete: Runnable = { () => callback(IO.succeedLazy(a + b)) }
-      val eventualResult = executor.schedule(complete, 5, TimeUnit.SECONDS)
-      val canceler = IO.effectTotal(eventualResult.cancel(false))
-      Left(canceler)
-    }
+def add(a: Int, b: Int): IO[String, Int] = {
+  IO.effectAsyncInterrupt { (callback: IO[String, Int] => Unit) =>
+    val canceler = addAsync(a, b,
+      result => callback(IO.succeed(result)),
+      error => callback(IO.fail(error))
+    )
+
+    Left(IO.effectTotal(canceler()))
+  }
+}
+```
+---
+
+# Asynchronous `Future` in `IO`
+
+```scala
+def addAsync(a: Int, b: Int)(implicit ec: ExecutionContext): Future[Int] = ???
+
+def add(a: Int, b: Int): IO[Throwable, Int] = {
+  IO.fromFuture { implicit ec =>
+    addAsync(a, b)
   }
 }
 ```
@@ -474,7 +527,58 @@ val program: IO[Nothing, String] =
 
 ---
 
-# There's Much More in _ZIO_
+# Actually `ZIO` Is More Than `IO`
+
+
+```scala
+ZIO[-R, +E, +A] // R = Environment, E = Error, A = Result
+```
+
+* `R` is the type for the **environment** required to run the program.
+* A set of **services** expressed as a compound type (using `with`)
+* `Any` means that _any_ environment is enough, so it requires no environment.
+
+And `IO` is just a type alias
+
+```scala
+type IO[+E, +A] = ZIO[Any, E, A] 
+```
+
+---
+
+# Using Standard Services
+
+```scala
+val program: ZIO[System with Clock with Random with Console, Throwable, Unit] = for {
+  randomNumber <- random.nextInt(10)
+  maybeJavaVersion <- system.property("java.version")
+  millisSinceEpoch <- clock.currentTime(TimeUnit.MILLISECONDS)
+
+  _ <- ZIO.foreach(maybeJavaVersion) { javaVersion =>
+    putStrLn(s"Java Version is $javaVersion")
+  }
+
+  _ <- console.putStrLn(s"Milliseconds since epoch is $millisSinceEpoch")
+  _ <- console.putStrLn(s"Random number is $randomNumber")
+} yield ()
+```
+
+---
+
+# Powerful Testing and Debugging 
+
+* **Dependency injection** of services in environment
+
+* **Error traceability**
+  - No error is lost
+  - Concurrent errors are kept
+  - No need to mindlessly log exceptions
+* **Stack traces**
+  - Across **fibers** and **threads**
+
+---
+
+# Concurrency Features
 
 * **Streaming**
   - **`Stream`**, a lazy, concurrent, asynchronous source of values
