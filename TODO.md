@@ -1,4 +1,17 @@
 
+# References
+
+* [test](https://github.com/politrons/reactiveScala/blob/master/scala_features/src/main/scala/app/impl/scalaz/zio/ZIOMonad.scala)
+* [ZIO & Cats Effect: A Match Made in Heaven](http://degoes.net/articles/zio-cats-effect)
+* [ZIO Cheat Sheet](https://github.com/ghostdogpr/zio-cheatsheet)
+* [ZIO todo Backend](https://github.com/mschuwalow/zio-todo-backend)
+
+
+* [PureConfig](https://github.com/pureconfig/pureconfig)
+
+https://www.youtube.com/watch?v=mGxcaQs3JWI&t=249s
+
+
 ---
 
 # Exceptions are Impure
