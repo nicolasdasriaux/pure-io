@@ -80,7 +80,7 @@ val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
 
 * `Die`, **unexpected** error
   - **System** error, **fatal** error, defect, unantipated error
-  - Not reflected in type (`Nothing`)
+  - Not reflected in type
 
 ---
 
@@ -103,13 +103,15 @@ val exceptionFailure: IO[FileNotFoundException, Nothing] =
 ```scala
 val death: IO[Nothing, Nothing] =
   IO.die(new IndexOutOfBoundsException("Unexpected"))
+// Will never fail (Nothing)
+// Will never succeed (Nothing)
+// Will always die with error (not reflected in type)
+// Error can only be an exception (but just as a value, never thrown!)
 
 val deathMessage: IO[Nothing, Nothing] =
   IO.dieMessage("Unexpected")
-
-// Will always die with error not reflected in type (Nothing)
-// will never succeed (Nothing)
-```
+// When just in need of a RuntimeException with a message
+ ```
 
 ---
 
@@ -416,7 +418,7 @@ val printRandomPoint: IO[Nothing, Point] = {
 def describeNumber(n: Int): IO[Nothing, Unit] = {
   for {
     _ <- if (n % 2 == 0) putStrLn("Even") else putStrLn("Odd")
-    _ <- if (n == 42) putStrLn("The Anwser") else IO.unit
+    _ <- if (n == 42) putStrLn("The Answer") else IO.unit
   } yield ()
 }
 ```
@@ -529,13 +531,12 @@ val program: IO[Nothing, String] =
 
 # Actually `ZIO` Is More Than `IO`
 
-
 ```scala
 ZIO[-R, +E, +A] // R = Environment, E = Error, A = Result
 ```
 
 * `R` is the type for the **environment** required to run the program.
-* A set of **services** expressed as a compound type (using `with`)
+* A set of **services** expressed as a _compound type_ (using `with`)
 * `Any` means that _any_ environment is enough, so it requires no environment.
 
 And `IO` is just a type alias
@@ -567,14 +568,16 @@ val program: ZIO[System with Clock with Random with Console, Throwable, Unit] = 
 
 # Powerful Testing and Debugging 
 
-* **Dependency injection** of services in environment
+* **Full Testability**
+  - _Dependency injection_ of services in environment
 
-* **Error traceability**
+* **Lossless Error Traceability**
   - No error is lost
   - Concurrent errors are kept
   - No need to mindlessly log exceptions
-* **Stack traces**
-  - Across **fibers** and **threads**
+  
+* **Full Stack Traces**
+  - Across _fibers_ and _threads_
 
 ---
 

@@ -26,13 +26,15 @@ package pureio {
 
       val death: IO[Nothing, Nothing] =
         IO.die(new IndexOutOfBoundsException("Unexpected"))
+      // Will never fail (Nothing)
+      // Will never succeed (Nothing)
+      // Will always die with IndexOutOfBoundsException error (not reflected in type)
+      // Error can only be an exception (but just as a value, never thrown!)
 
       val deathMessage: IO[Nothing, Nothing] =
         IO.dieMessage("Unexpected")
-
-      // Will always die with error not reflected in type (Nothing)
-      // will never succeed (Nothing)
-    }
+      // When just in need of a RuntimeException with a message
+   }
   }
 
   package sync {
@@ -371,7 +373,7 @@ package pureio {
       def describeNumber(n: Int): IO[Nothing, Unit] = {
         for {
           _ <- if (n % 2 == 0) putStrLn("Even") else putStrLn("Odd")
-          _ <- if (n == 42) putStrLn("The Anwser") else IO.unit
+          _ <- if (n == 42) putStrLn("The Answer") else IO.unit
         } yield ()
       }
 
