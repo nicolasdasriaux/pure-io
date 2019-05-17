@@ -1,5 +1,5 @@
 autoscale: true
-footer: Practical Pure I/O in Java
+footer: Practical Pure I/O in Scala
 slidenumbers: true
 
 # Practical
@@ -161,8 +161,8 @@ def getStrLn: IO[IOException, String] = {
   // Side-effecting code reads from keyboard until a line is available,
   // and returns the line (String).
 
-  // In case an IOException is thrown, catch it and fail with the exception (not thrown)
-  // or die in case of any other exception.
+  // In case an IOException is thrown, catch it and fail with the exception (not rethrown)
+  // or die in case of any other exception (not rethrown).
   IO.effect(/* () => */ StdIn.readLine()).refineOrDie {
     case e: IOException => e
   }
