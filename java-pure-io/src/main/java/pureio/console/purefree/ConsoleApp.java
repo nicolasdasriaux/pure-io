@@ -10,7 +10,7 @@ public class ConsoleApp {
     // ------ Hello App -----------------------------------------------------------------------------------------------
 
     public static final Program<Unit> helloApp =
-            putStrLn("What's you name?").thenChain(__ -> {
+            putStrLn("What's your name?").thenChain(__ -> {
                 return getStrLn().thenChain(name -> {
                     return putStrLn("Hello " + name + "!");
                 });
