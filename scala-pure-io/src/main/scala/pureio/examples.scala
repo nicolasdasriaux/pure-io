@@ -438,20 +438,18 @@ package pureio {
     import scala.util.Random
 
     object Main {
-      object NameService {
-        def find(id: Int): IO[Int, String] =  {
-          for {
-            n <- IO.effectTotal(Random.nextInt())
-            name <- if (n > 0) IO.succeed(s"Name $id") else IO.fail(-1)
-          } yield name
-        }
+      def findName(id: Int): IO[Int, String] =  {
+        for {
+          n <- IO.effectTotal(Random.nextInt())
+          name <- if (n > 0) IO.succeed(s"Name $id") else IO.fail(-1)
+        } yield name
       }
 
       val retrySchedule = Schedule.recurs(5) && Schedule.exponential(1.second)
 
-      val program =
+      val program: IO[Int, Unit] =
         for {
-          name <- NameService.find(1).retry(retrySchedule)
+          name <- findName(1).retry(retrySchedule)
           _ <- putStrLn(s"name=$name")
         } yield ()
 

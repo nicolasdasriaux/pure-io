@@ -79,7 +79,7 @@ val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
   - Reflected in type as `E`
 
 * `Die`, **unexpected** error
-  - **System** error, **fatal** error, defect, unantipated error
+  - **System** error, **fatal** error, defect, unanticipated error
   - Not reflected in type
 
 ---
@@ -478,7 +478,7 @@ object Resource {
   def open(name: String): IO[Int, Resource] = ???
 }
 
-val program: IO[Nothing, Unit] =
+val program: IO[Int, Unit] =
   IO.bracket(Resource.open("hello"))(_.close) { resource =>
     for {
       line <- resource.read
@@ -492,15 +492,13 @@ val program: IO[Nothing, Unit] =
 # Retrying after Error
 
 ```scala
-object NameService {
-  def find(id: Int): IO[Int, String] = ???
-}
+def findName(id: Int): IO[Int, String] = ???
 
 val retrySchedule = Schedule.recurs(5) && Schedule.exponential(1.second)
 
-val program =
+val program: IO[Int, Unit] =
   for {
-    name <- NameService.find(1).retry(retrySchedule)
+    name <- findName(1).retry(retrySchedule)
     _ <- putStrLn(s"name=$name")
   } yield ()
 ```
