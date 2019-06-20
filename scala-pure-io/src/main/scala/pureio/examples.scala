@@ -331,14 +331,14 @@ package pureio {
 
         val printRandomPoint: IO[Nothing, Point] = {
           for {
-            x <- randomBetween(0, 10)                  /*  x                */
+            x <- randomBetween(0, 10)            /*  x                */
             _ <- putStrLn(s"x=$x")               /*  O                */
-            y <- randomBetween(0, 10)                  /*  |    y           */
+            y <- randomBetween(0, 10)            /*  |    y           */
             _ <- putStrLn(s"y=$y")               /*  |    O           */
-            point = Point(x, y)                        /*  O    O    point  */
+            point = Point(x, y)                  /*  O    O    point  */
             _ <- putStrLn(s"point.x=${point.x}") /*  |    |    O      */
             _ <- putStrLn(s"point.y=${point.y}") /*  |    |    O      */
-          } yield point                                /*  |    |    O      */
+          } yield point                          /*  |    |    O      */
         }
 
         def main(args: Array[String]): Unit = {
@@ -447,7 +447,7 @@ package pureio {
 
       val retrySchedule = Schedule.recurs(5) && Schedule.exponential(1.second)
 
-      val program: IO[Int, Unit] =
+      val program =
         for {
           name <- findName(1).retry(retrySchedule)
           _ <- putStrLn(s"name=$name")
@@ -641,10 +641,6 @@ package pureio {
         val failureExit: Exit[FileNotFoundException, Nothing] = Exit.fail(new FileNotFoundException("expectable"))
         val deathExit: Exit[Nothing, Nothing] = Exit.die(new IndexOutOfBoundsException("unexpectable"))
         val interruptionExit: Exit[Nothing, Nothing] = Exit.interrupt
-      }
-
-      def main(args: Array[String]): Unit = {
-        RTS.unsafeRun(failureIO.run.flatMap(l => putStrLn(l.toString)))
       }
     }
   }

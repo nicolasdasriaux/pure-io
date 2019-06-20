@@ -579,7 +579,7 @@ val program: ZIO[System with Clock with Random with Console, Throwable, Unit] = 
 
 ---
 
-# Concurrency Features
+# Loaded with Features
 
 * **Streaming**
   - **`Stream`**, a lazy, concurrent, asynchronous source of values
