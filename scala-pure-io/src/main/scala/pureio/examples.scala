@@ -156,9 +156,10 @@ package pureio {
     package map {
       object Main {
         val randomLetter: IO[Nothing, Char] =
-          randomBetween('A', 'Z').map { i /* Int */ =>
-            i.toChar /* Char */
-          }
+          randomBetween('A', 'Z') /* IO[Nothing, Int] */
+            .map { i /* Int */ =>
+              i.toChar /* Char */
+            }
 
         def main(args: Array[String]): Unit = {
           println(RTS.unsafeRun(randomLetter))
@@ -169,14 +170,16 @@ package pureio {
     package flatmap {
       object Main {
         val printRolledDiceWRONG: IO[Nothing, IO[Nothing, Unit]] =
-          randomBetween(1, 6).map { dice /* Int */ =>
-            putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
-          }
+          randomBetween(1, 6) /* IO[Nothing, Int] */
+            .map { dice /* Int */ =>
+              putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
+            }
 
         val printRolledDice: IO[Nothing, Unit] =
-          randomBetween(1, 6).flatMap { dice /* Int */ =>
-            putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
-          }
+          randomBetween(1, 6) /* IO[Nothing, Int] */
+            .flatMap { dice /* Int */ =>
+              putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
+            }
 
         def main(args: Array[String]): Unit = {
           RTS.unsafeRun(printRolledDice)

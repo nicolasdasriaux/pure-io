@@ -111,7 +111,7 @@ val death: IO[Nothing, Nothing] =
 val deathMessage: IO[Nothing, Nothing] =
   IO.dieMessage("Unexpected")
 // When just in need of a RuntimeException with a message
- ```
+```
 
 ---
 
@@ -234,9 +234,10 @@ def add(a: Int, b: Int): IO[Throwable, Int] = {
 
 ```scala
 val randomLetter: IO[Nothing, Char] =
-  randomBetween('A', 'Z').map { i /* Int */ =>
-    i.toChar /* Char */
-  }
+  randomBetween('A', 'Z') /* IO[Nothing, Int] */
+    .map { i /* Int */ =>
+      i.toChar /* Char */
+    }
 ```
 
 ---
@@ -245,9 +246,10 @@ val randomLetter: IO[Nothing, Char] =
 
 ```scala
 val printRolledDiceWRONG: IO[Nothing, IO[Nothing, Unit]] =
-  randomBetween(1, 6).map { dice /* Int */ =>
-    putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
-  }
+  randomBetween(1, 6) /* IO[Nothing, Int] */
+    .map { dice /* Int */ =>
+      putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
+    }
 ```
 
 * Wrong **nested** type `IO[Nothing, IO[Nothing, Unit]]`
@@ -259,9 +261,10 @@ val printRolledDiceWRONG: IO[Nothing, IO[Nothing, Unit]] =
 
 ```scala
 val printRolledDice: IO[Nothing, Unit] =
-  randomBetween(1, 6).flatMap { dice /* Int */ =>
-    putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
-  }
+  randomBetween(1, 6) /* IO[Nothing, Int] */
+    .flatMap { dice /* Int */ =>
+      putStrLn(s"Dice shows $dice") /* IO[Nothing, Unit] */
+    }
 ```
 
 ---
