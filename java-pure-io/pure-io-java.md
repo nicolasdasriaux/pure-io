@@ -318,7 +318,7 @@ public class ConsoleApp {
 }
 ```
 
-* Sure, `unsafeRun` call point (**_end of the world_**) is **impure** :imp:... 
+* Sure, `unsafeRun` call point (**_edge of the world_**) is **impure** :imp:... 
 * But the **rest of the code** is fully **pure** :innocent:!
 
 ---

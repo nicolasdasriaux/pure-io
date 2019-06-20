@@ -3,8 +3,82 @@ footer: Practical Pure I/O in Scala
 slidenumbers: true
 
 # Practical
-# [fit] **Pure IO**
+# [fit] **Pure I/O**
 ## in Scala with _ZIO_
+
+---
+
+# Previously on Practical Pure I/O ...
+## [fit] Programs with side-effects on just one line ... are achievable.
+
+---
+
+# The Promise of Functional Programming
+
+* If we program with **functions**, defined as
+  - **Deterministic**: same arguments implies same result
+  - **Total**: result always available for arguments, no exception
+  - **Pure**: only effect is computing result, **no side-effects**
+  
+* Then **typical refactorings cannot break a working program** :thumbsup:.
+
+---
+
+# Programs as Pure Values
+
+```java
+public interface Program<A> { // ...
+    // Creating elementary programs
+    static <A> Program<A> of(final Supplier<A> unsafeRun) { /* ... */ }
+    static <A> Program<A> yield(final A a) { /* ... */ }
+    
+    // Combining programs to form larger programs
+    default <B> Program<B> thenChain(final Function<A, Program<B>> f) { /* ... */ }
+    default <B> Program<B> thenTransform(final Function<A, B> f) { /* ... */ }
+
+    // Interpreting the resulting program 
+    static <A> A unsafeRun(final Program<A> program) { /* ... */ }
+}
+```
+
+---
+
+# Impurity at the _Edge of the World_
+
+```java
+public class HelloWorldApp {
+    public static final Program<Unit> helloApp =
+            putStrLn("What's your name?").thenChain(__ -> {
+                return getStrLn().thenChain(name -> {
+                    return putStrLn("Hello " + name + "!");
+                });
+            });
+
+    public static void main(String[] args) {
+        final Program<Unit> program = helloApp;
+        // PURE, anything above done by creating and combining programs
+        Program.unsafeRun(program); // IMPURE, only at the Edge of the World
+    }
+}
+```
+
+---
+
+# A Value Containing Void (`Unit`)
+
+```java
+@Value.Immutable(singleton = true)
+public abstract class Unit {
+    public static Unit of() {
+        return ImmutableUnit.of();
+    }
+}
+```
+
+---
+
+# Business-Ready Pure I/O
+## with _ZIO_
 
 ---
 
