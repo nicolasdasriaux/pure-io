@@ -39,6 +39,8 @@ package pureio {
 
   package sync {
     import java.io.IOException
+
+    import scala.io.StdIn
     import scala.util.Random
 
     object Main {
@@ -61,11 +63,13 @@ package pureio {
         // Side-effecting code reads from keyboard until a line is available,
         // and returns the line (String).
 
-        // In case an IOException is thrown, catch it and fail with the exception (not thrown)
+        // In case an IOException is thrown, catch it
+        // and fail with the exception (not thrown)
         // or die in case of any other exception.
-        IO.effect(/* () => */ scala.io.StdIn.readLine()).refineOrDie {
-          case e: IOException => e
-        }
+        IO.effect(/* () => */ StdIn.readLine()) /* IO[Throwable, String] */
+          .refineOrDie {
+            case e: IOException => e
+          }
       }
     }
   }
@@ -83,10 +87,10 @@ package pureio {
         }
 
         def add(a: Int, b: Int): IO[String, Int] = {
-          IO.effectAsync { (callback: IO[String, Int] => Unit) =>
+          IO.effectAsync { (notify: IO[String, Int] => Unit) =>
             addAsync(a, b,
-              result => callback(IO.succeed(result)),
-              error => callback(IO.fail(error))
+              result => notify(IO.succeed(result)),
+              error => notify(IO.fail(error))
             )
           }
         }
@@ -109,13 +113,13 @@ package pureio {
         }
 
         def add(a: Int, b: Int): IO[String, Int] = {
-          IO.effectAsyncInterrupt { (callback: IO[String, Int] => Unit) =>
+          IO.effectAsyncInterrupt { (notify: IO[String, Int] => Unit) =>
             val canceler = addAsync(a, b,
-              result => callback(IO.succeed(result)),
-              error => callback(IO.fail(error))
+              result => notify(IO.succeed(result)),
+              error => notify(IO.fail(error))
             )
 
-            Left(IO.effectTotal(canceler()))
+            Left(IO.effectTotal(/* () => */ canceler()))
           }
         }
 
@@ -141,7 +145,7 @@ package pureio {
 
         def add(a: Int, b: Int): IO[Throwable, Int] = {
           IO.fromFuture { implicit ec =>
-            addAsync(a, b)
+            addAsync(a, b) /* (ec) */
           }
         }
 
@@ -526,7 +530,7 @@ package pureio {
         millisSinceEpoch <- clock.currentTime(TimeUnit.MILLISECONDS)
 
         _ <- ZIO.foreach(maybeJavaVersion) { javaVersion =>
-          putStrLn(s"Java Version is $javaVersion")
+          console.putStrLn(s"Java Version is $javaVersion")
         }
 
         _ <- console.putStrLn(s"Milliseconds since epoch is $millisSinceEpoch")

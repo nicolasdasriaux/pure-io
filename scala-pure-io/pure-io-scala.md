@@ -13,13 +13,12 @@ slidenumbers: true
 > Type-safe, composable, asynchronous and concurrent programming for Scala
 -- https://scalaz.github.io/scalaz-zio/
 
-* **Synchronicity** and **Asynchronicity** (handled reactively), combine seamlessly
-* **Concurrency**, based on lightweight fibers
-* **Resiliency**, can recover from errors
-* **Interruptibility**, can interrupt any program
-* **Resource Safety**, ensure resources will never leak (threads, sockets, file handles...)
-* **Performance**, extremely fast given features and strong guarantees
-* And also **Composability** and **Testability**
+* Support for **synchronicity** and **asynchronicity**
+* Support for **concurrency** with _fibers_ and  **interruptibility**
+* Consistent **error model** (expected vs. unexpected), **resiliency** and **resource safety**
+* Full **testability** with dependency injection
+* Easy **debugging**
+* **Performance** and **stack safety**
 
 ---
 
@@ -29,8 +28,8 @@ slidenumbers: true
 IO[+E, +A] // IO<E, A>   E = error, A = Result
 ```
 
-* An immutable object that **describes** a **program performing side-effects**.
-* An `IO` does nothing, it's just a **value** holding a program.
+* An immutable object that **describes a program** performing _side-effects_.
+* An `IO` **does nothing**, it's pure.
 * It must be interpreted by a **runtime system** or **RTS**
 * Only when **run** by the RTS, it will either
     - **succeed** producing a **result** of type **`A`**,
@@ -161,11 +160,13 @@ def getStrLn: IO[IOException, String] = {
   // Side-effecting code reads from keyboard until a line is available,
   // and returns the line (String).
 
-  // In case an IOException is thrown, catch it and fail with the exception (not rethrown)
-  // or die in case of any other exception (not rethrown).
-  IO.effect(/* () => */ StdIn.readLine()).refineOrDie {
-    case e: IOException => e
-  }
+  // In case an IOException is thrown, catch it
+  // and fail with the exception (not thrown)
+  // or die in case of any other exception.
+  IO.effect(/* () => */ StdIn.readLine()) /* IO[Throwable, String] */
+    .refineOrDie {
+      case e: IOException => e
+    }
 }
 ```
 
@@ -180,10 +181,10 @@ def addAsync(a: Int, b: Int,
 ): Unit = ???
 
 def add(a: Int, b: Int): IO[String, Int] = {
-  IO.effectAsync { (callback: IO[String, Int] => Unit) =>
+  IO.effectAsync { (notify: IO[String, Int] => Unit) =>
     addAsync(a, b,
-      result => callback(IO.succeed(result)),
-      error => callback(IO.fail(error))
+      result => notify(IO.succeed(result)),
+      error => notify(IO.fail(error))
     )
   }
 }
@@ -200,13 +201,13 @@ def addAsync(a: Int, b: Int,
 ): () => Unit = ???
 
 def add(a: Int, b: Int): IO[String, Int] = {
-  IO.effectAsyncInterrupt { (callback: IO[String, Int] => Unit) =>
+  IO.effectAsyncInterrupt { (notify: IO[String, Int] => Unit) =>
     val canceler = addAsync(a, b,
-      result => callback(IO.succeed(result)),
-      error => callback(IO.fail(error))
+      result => notify(IO.succeed(result)),
+      error => notify(IO.fail(error))
     )
 
-    Left(IO.effectTotal(canceler()))
+    Left(IO.effectTotal(/* () => */ canceler()))
   }
 }
 ```
@@ -219,7 +220,7 @@ def addAsync(a: Int, b: Int)(implicit ec: ExecutionContext): Future[Int] = ???
 
 def add(a: Int, b: Int): IO[Throwable, Int] = {
   IO.fromFuture { implicit ec =>
-    addAsync(a, b)
+    addAsync(a, b) /* (ec) */
   }
 }
 ```
@@ -530,7 +531,7 @@ val program: IO[Nothing, String] =
 
 ---
 
-# Actually `ZIO` Is More Than `IO`
+# Injecting Services with Environment
 
 ```scala
 ZIO[-R, +E, +A] // R = Environment, E = Error, A = Result
@@ -538,7 +539,7 @@ ZIO[-R, +E, +A] // R = Environment, E = Error, A = Result
 
 * `R` is the type for the **environment** required to run the program.
 * A set of **services** expressed as a _compound type_ (using `with`)
-* `Any` means that _any_ environment is enough, so it requires no environment.
+* `Any` means that _any_ environment is enough, so it requires _no_ environment.
 
 And `IO` is just a type alias
 
@@ -557,7 +558,7 @@ val program: ZIO[System with Clock with Random with Console, Throwable, Unit] = 
   millisSinceEpoch <- clock.currentTime(TimeUnit.MILLISECONDS)
 
   _ <- ZIO.foreach(maybeJavaVersion) { javaVersion =>
-    putStrLn(s"Java Version is $javaVersion")
+    console.putStrLn(s"Java Version is $javaVersion")
   }
 
   _ <- console.putStrLn(s"Milliseconds since epoch is $millisSinceEpoch")
@@ -570,7 +571,7 @@ val program: ZIO[System with Clock with Random with Console, Throwable, Unit] = 
 # Powerful Testing and Debugging 
 
 * **Full Testability**
-  - _Dependency injection_ of services in environment
+  - **Dependency injection** of services in environment
 
 * **Lossless Error Traceability**
   - No error is lost
@@ -585,12 +586,12 @@ val program: ZIO[System with Clock with Random with Console, Throwable, Unit] = 
 # Loaded with Features
 
 * **Streaming**
-  - **`Stream`**, a lazy, concurrent, asynchronous source of values
-  - **`Sink`**, a consumer of values, which may produces a value when it has consumed enough
+  - `Stream`, a lazy, concurrent, asynchronous source of values
+  - `Sink`, a consumer of values, which may produces a value when it has consumed enough
 * **Software Transactional Memory** (STM)
 * **Low Level Concurrency**
-  * **`FiberLocal`**, a variable whose value depends on the fiber that accesses it
-  * **`Promise`**, a variable that may be set a single time, and awaited on by many fibers
-  * **`Queue`**, an asynchronous queue that never blocks
-  * **`Ref`**, a mutable reference to a value
-  * **`Semaphore`**, a semaphore
+  * `FiberLocal`, `FiberRef`, a variable whose value depends on the fiber that accesses it
+  * `Promise`, a variable that may be set a single time, and awaited on by many fibers
+  * `Queue`, an asynchronous queue that never blocks
+  * `Ref`, a mutable reference to a value
+  * `Semaphore`, a semaphore
