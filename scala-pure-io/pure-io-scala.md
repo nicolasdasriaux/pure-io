@@ -9,7 +9,7 @@ slidenumbers: true
 ---
 
 # Previously on Practical Pure I/O ...
-## [fit] Programs with just one line performing all side-effects
+## [fit] Programs with just one of the lines performing all side-effects
 
 ---
 
@@ -28,15 +28,15 @@ slidenumbers: true
 
 ```java
 public interface Program<A> { // ...
-    // Creating elementary programs
+    // Creating elementary programs (PURE)
     static <A> Program<A> of(final Supplier<A> unsafeRun) { /* ... */ }
     static <A> Program<A> yield(final A a) { /* ... */ }
     
-    // Combining programs to form larger programs
+    // Combining programs to form larger programs (PURE)
     default <B> Program<B> thenChain(final Function<A, Program<B>> f) { /* ... */ }
     default <B> Program<B> thenTransform(final Function<A, B> f) { /* ... */ }
 
-    // Interpreting the resulting program 
+    // Interpreting a program and performing all side effects (IMPURE)
     static <A> A unsafeRun(final Program<A> program) { /* ... */ }
 }
 ```
@@ -147,11 +147,11 @@ val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
 
 # Error Model
 
-* `Fail`, **anticipated** error
+* `Fail`, **expected** error
   - **Domain** error, **business** error, transient error
   - Reflected in type as `E`
 
-* `Die`, **unanticipated** error
+* `Die`, **unexpected** error
   - **System** error, **fatal** error, defect
   - Not reflected in type
 
