@@ -9,7 +9,7 @@ slidenumbers: true
 ---
 
 # Previously on Practical Pure I/O ...
-## [fit] Programs with side-effects on just one line ... are achievable.
+## [fit] Programs with just one line performing all side-effects
 
 ---
 
@@ -24,7 +24,7 @@ slidenumbers: true
 
 ---
 
-# Programs as Pure Values
+# Program as Immutable Object
 
 ```java
 public interface Program<A> { // ...
@@ -56,8 +56,8 @@ public class HelloWorldApp {
 
     public static void main(String[] args) {
         final Program<Unit> program = helloApp;
-        // PURE, anything above done by creating and combining programs
-        Program.unsafeRun(program); // IMPURE, only at the Edge of the World
+        // PURE-only above ^^^^^ (creating and combining programs)
+        Program.unsafeRun(program); // IMPURE, only here at the Edge of the World
     }
 }
 ```
@@ -104,7 +104,7 @@ IO[+E, +A] // IO<E, A>   E = error, A = Result
 
 * An immutable object that **describes a program** performing _side-effects_.
 * An `IO` **does nothing**, it's pure.
-* It must be interpreted by a **runtime system** or **RTS**
+* It must be interpreted by a **runtime system** or **RTS**.
 * Only when **run** by the RTS, it will either
     - **succeed** producing a **result** of type **`A`**,
     - or **fail** with an **error** of type **`E`**,
@@ -147,12 +147,12 @@ val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
 
 # Error Model
 
-* `Fail`, **expected** error
-  - **Domain** error, **business** error, transient error, anticipated error
+* `Fail`, **anticipated** error
+  - **Domain** error, **business** error, transient error
   - Reflected in type as `E`
 
-* `Die`, **unexpected** error
-  - **System** error, **fatal** error, defect, unanticipated error
+* `Die`, **unanticipated** error
+  - **System** error, **fatal** error, defect
   - Not reflected in type
 
 ---
@@ -194,7 +194,7 @@ val deathMessage: IO[Nothing, Nothing] =
 
 # Wrapping in `IO` as the Great Unifier
 
-* `IO` integrates any kind of IO seamlessly into the same **unified model**.
+* `IO` integrates any kind of I/O seamlessly into the same **unified model**.
 
 * Abstracts over how **success** is returned and **failure** is signaled
   - Synchronous `return` and  `throw`
@@ -436,16 +436,16 @@ val printRandomPoint: IO[Nothing, Point] = {
 
 # `for` Comprehension **Type Rules**
 
-|            | `val` type | operator | expression type |
-|------------|------------|----------|-----------------|
-| generator  | `A`        | `<-`     | `IO[E, A]`      |
-| assignment | `B`        | `=`      | `B`             |
+|             | `val` type | operator | expression type |
+|-------------|------------|----------|-----------------|
+| generation  | `A`        | `<-`     | `IO[E, A]`      |
+| assignment  | `B`        | `=`      | `B`             |
 
 |            | `for` comprehension type | `yield` expression type |
 |------------|--------------------------|-------------------------|
 | production | `IO[E, R]`               | `R`                     |
 
-* Combines **only `IO[E, T]`**, **no mix** with `Seq[T]`, `Option[T]`, `Future[T]`...
+* Combines **only** `IO[E, T]`, **no mix** with `Seq[T]`, `Option[T]`, `Future[T]`...
 * But it could be **only** `Seq[T]`, **only** `Option[T]`, **only** `Future[T]`...
 
 ---
@@ -535,8 +535,8 @@ def findNames(ids: List[Int]): IO[Nothing, List[String]] =
 * Recursion can be hard to read
 * Prefer using simpler alternatives whenever possible
   - `IO.foreach`, `IO.collectAll`, `IO.reduceAll`, `IO.mergeAll`
-  - Or `IO.foreachPar`, `IO.collectAllPar`, `IO.reduceAllPar`, `IO.mergeAllPar`
-    in **parallel** :thumbsup:
+  - Or in **parallel** :thumbsup:,
+    `IO.foreachPar`, `IO.collectAllPar`, `IO.reduceAllPar`, `IO.mergeAllPar`
 
 ---
 
