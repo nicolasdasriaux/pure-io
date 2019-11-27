@@ -1,9 +1,9 @@
-package pureio
+package pureio.presentation
 
 import java.io.IOException
 
-import scalaz.zio.console._
-import scalaz.zio.{App, IO, ZIO}
+import zio.console.{Console, getStrLn, putStrLn}
+import zio.{App, IO, ZIO}
 
 import scala.util.{Random, Try}
 
@@ -23,9 +23,9 @@ object PureIoApp extends App {
     getNumber(1, 5)
 
   def launchMenuItem(choice: Int): ZIO[Console, IOException, Boolean] = choice match {
-    case 1 => helloApp.const(false)
-    case 2 => guessNumberApp.const(false)
-    case 3 => countDownApp.const(false)
+    case 1 => helloApp.as(false)
+    case 2 => guessNumberApp.as(false)
+    case 3 => countDownApp.as(false)
     case 4 => IO.succeed(true)
   }
 

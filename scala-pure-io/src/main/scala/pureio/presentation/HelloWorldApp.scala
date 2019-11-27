@@ -1,6 +1,6 @@
-package pureio
+package pureio.presentation
 
-import scalaz.zio.{App, IO}
+import zio.{App, IO}
 
 object HelloWorldApp extends App {
   // Wraps synchronous (blocking) side-effecting code in an IO
@@ -9,6 +9,6 @@ object HelloWorldApp extends App {
     // The IO just holds a lambda but does not run it for now.
 
   def run(args: List[String]): IO[Nothing, Int] = {
-    helloWorld.either.fold(_ => 1, _ => 0)
+    helloWorld.as(0)
   }
 }

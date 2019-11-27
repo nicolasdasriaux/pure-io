@@ -1,9 +1,9 @@
-package pureio
+package pureio.presentation
 
 import java.io.IOException
 
-import scalaz.zio.console._
-import scalaz.zio.{App, IO, ZIO}
+import zio.console._
+import zio.{App, ZIO}
 
 class HelloYouApp extends App {
   def run(args: List[String]): ZIO[Console, Nothing, Int] = {

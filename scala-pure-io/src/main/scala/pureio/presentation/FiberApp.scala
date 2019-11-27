@@ -1,19 +1,19 @@
-package pureio
+package pureio.presentation
 
-import scalaz.zio.console._
-import scalaz.zio.duration._
-import scalaz.zio._
-import scalaz.zio.clock.Clock
-import scalaz.zio.random.Random
+import zio.clock.Clock
+import zio.console.{Console, putStrLn}
+import zio.random.Random
+import zio._
+import zio.duration._
 
 object FiberApp extends App {
   def run(args: List[String]): ZIO[Clock with Console, Nothing, Int] =
-    program.either.map(_.fold(_ => 1, _ => 0))
+    program.as(0)
 
   def program: ZIO[Console with Clock, Nothing, Unit] = {
     val a: ZIO[Clock with Random with Console, Nothing, Unit] =
       putStrLn("A ")
-        .repeat(Schedule.recurs(3) && Schedule.spaced(1.second).jittered)
+        .repeat(Schedule.recurs(3) && Schedule.spaced(1.second))
         .unit
         .delay(4.seconds)
 
@@ -32,13 +32,13 @@ object FiberApp extends App {
       IO.unit
         .repeat(
           (Schedule.spaced(500.millis) *> Schedule.recurs(5))
-            .logOutput(i => queue.offer(i).void)
-            andThen Schedule.succeedLazy(0).logOutput(i => queue.offer(i).void)
+            .tapOutput(i => queue.offer(i).unit)
+            andThen Schedule.succeed(0).tapOutput(i => queue.offer(i).unit)
         )
 
     def take(queue: Queue[Int]): ZIO[Clock with Console, Nothing, Int] =
       queue.take
-        .flatMap(v => putStrLn(s"v=$v").const(v))
+        .tap(v => putStrLn(s"v=$v"))
         .repeat(Schedule.doUntil(_ == 0))
 
     for {

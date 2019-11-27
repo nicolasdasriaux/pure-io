@@ -122,7 +122,7 @@ object HelloWorldApp extends App {
     // The IO just holds a lambda but does not run it for now.
 
   def run(args: List[String]): IO[Nothing, Int] = {
-    helloWorld.either.fold(_ => 1, _ => 0)
+    helloWorld.as(0)
   }
 }
 ```
@@ -137,8 +137,6 @@ object HelloWorldApp extends App {
 
 ```scala
 val success: IO[Nothing, Int] = IO.succeed(42)
-val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
-
 // Will never fail (Nothing)
 // Will always succeed with result 42 (Int)
 ```
@@ -214,7 +212,7 @@ def randomBetween(min: Int, max: Int): IO[Nothing, Int] = {
   // Side-effecting code updates the state of a random generator,
   // and returns a random number (Int).
   // It can never fail (Nothing).
-  IO.effectTotal(/* () => */ Random.nextInt(max - min) + min)
+  IO.effectTotal(/* () => */ Random.nextInt(max - min + 1) + min)
 }
 
 def putStrLn(line: String): IO[Nothing, Unit] = {

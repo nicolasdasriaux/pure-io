@@ -1,6 +1,6 @@
-package pureio
+package pureio.presentation
 
-import scalaz.zio.{App, IO, Queue}
+import zio.{App, IO, Queue}
 
 object CrawlerApp extends App {
   def putStrLn(line: String): IO[Nothing, Unit] = IO.effectTotal(Console.println(line))
@@ -37,6 +37,6 @@ object CrawlerApp extends App {
   } yield ()
 
   override def run(args: List[String]): IO[Nothing, Int] = {
-    program.either.map(_.fold(_ => 0, _ => 1))
+    program.as(1)
   }
 }

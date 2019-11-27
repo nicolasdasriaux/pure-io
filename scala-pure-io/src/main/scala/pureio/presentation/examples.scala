@@ -1,7 +1,7 @@
-package pureio {
-  import pureio.sync.Main._
-  import scalaz.zio._
-  import scalaz.zio.duration._
+package pureio.presentation.examples {
+  import pureio.presentation.examples.sync.Main._
+  import zio._
+  import zio.duration._
 
   object RTS extends DefaultRuntime
   case class Point(x: Int, y: Int)
@@ -11,8 +11,6 @@ package pureio {
 
     object Main {
       val success: IO[Nothing, Int] = IO.succeed(42)
-      val successLazy: IO[Nothing, Int] = IO.succeedLazy(/* () => */ 40 + 2)
-
       // Will never fail (Nothing)
       // Will always succeed with result 42 (Int)
 
@@ -49,7 +47,7 @@ package pureio {
         // Side-effecting code updates the state of a random generator,
         // and returns a random number (Int).
         // It can never fail (Nothing).
-        IO.effectTotal(/* () => */ Random.nextInt(max - min) + min)
+        IO.effectTotal(/* () => */ Random.nextInt(max - min + 1) + min)
       }
 
       def putStrLn(line: String): IO[Nothing, Unit] = {
@@ -67,9 +65,7 @@ package pureio {
         // and fail with the exception (not thrown)
         // or die in case of any other exception.
         IO.effect(/* () => */ StdIn.readLine()) /* IO[Throwable, String] */
-          .refineOrDie {
-            case e: IOException => e
-          }
+          .refineToOrDie[IOException]
       }
     }
   }
@@ -396,7 +392,7 @@ package pureio {
     package recursion {
       object Main {
         def findName(id: Int): IO[Nothing, String] =
-          IO.succeedLazy(s"Name $id")
+          IO.effectTotal(s"Name $id")
 
         def findNames(ids: List[Int]): IO[Nothing, List[String]] = {
           ids match {
@@ -424,7 +420,7 @@ package pureio {
     package foreach {
       object Main {
         def findName(id: Int): IO[Nothing, String] =
-          IO.succeedLazy(s"Name $id")
+          IO.effectTotal(s"Name $id")
 
         def findNames(ids: List[Int]): IO[Nothing, List[String]] =
           IO.foreach(ids) { id => findName(id) }
@@ -492,7 +488,7 @@ package pureio {
   }
 
   package fork {
-    import scalaz.zio.clock.Clock
+    import zio.clock.Clock
 
     object Main {
       val analyze: IO[Nothing, String] = IO.succeed("Analysis").delay(1.second).provide(Clock.Live)
@@ -518,11 +514,11 @@ package pureio {
     object Main {
       import java.util.concurrent.TimeUnit
 
-      import scalaz.zio.{clock, console, random, system}
-      import scalaz.zio.clock.Clock
-      import scalaz.zio.console.Console
-      import scalaz.zio.random.Random
-      import scalaz.zio.system.System
+      import zio.{clock, console, random, system}
+      import zio.clock.Clock
+      import zio.console.Console
+      import zio.random.Random
+      import zio.system.System
 
       val program: ZIO[System with Clock with Random with Console, Throwable, Unit] = for {
         randomNumber <- random.nextInt(10)
@@ -543,7 +539,7 @@ package pureio {
     }
   }
 
-  package other {
+  package experimental {
     package console {
       import scala.annotation.tailrec
 
@@ -603,51 +599,6 @@ package pureio {
               _ <- countdown(n - 1)
             } yield ()
         }
-      }
-    }
-  }
-
-  package experiment {
-    import java.io.FileNotFoundException
-    import java.nio.file.{Files, Paths}
-    import scala.util.Random
-
-    object Main {
-      import scala.collection.JavaConverters._
-
-      // UIO[-R, +E, +A]
-
-      val successIO: UIO[Int] = ZIO.succeed(42)
-      val successLazyIO: UIO[Int] = ZIO.succeedLazy(40 + 2)
-
-      val failureIO: IO[FileNotFoundException, Nothing] = ZIO.fail(new FileNotFoundException("expectable"))
-      val deathIO: UIO[Nothing] = ZIO.die(new IndexOutOfBoundsException("unexpectable"))
-
-      val randomIntIO: UIO[Int] = ZIO.effectTotal(/* () => */ Random.nextInt(42))
-      val readFileIO: Task[Seq[String]] = ZIO.effect(/* () => */ Files.readAllLines(Paths.get("build.sbt")).asScala.toList)
-
-      val readFile_IO: IO[FileNotFoundException, List[String]] = ZIO
-        .effect(/* () => */ Files.readAllLines(Paths.get("build___.sbt")).asScala.toList)
-        .refineOrDie {
-          case ex: FileNotFoundException => ex
-        }
-
-      {
-        // trait Cause[+E]
-        val failureCause: Exit.Cause[FileNotFoundException] = Exit.Cause.fail(new FileNotFoundException("expectable"))
-        val deathCause: Exit.Cause[Nothing] = Exit.Cause.die(new IndexOutOfBoundsException("unexpectable"))
-        val interruptionCause: Exit.Cause[Nothing] = Exit.Cause.interrupt
-
-        val failureExit: Exit[FileNotFoundException, Nothing] = Exit.halt(failureCause)
-      }
-
-      {
-        // trait Exit[+E, +A]
-        val successExit: Exit[Nothing, Int] = Exit.succeed(42)
-
-        val failureExit: Exit[FileNotFoundException, Nothing] = Exit.fail(new FileNotFoundException("expectable"))
-        val deathExit: Exit[Nothing, Nothing] = Exit.die(new IndexOutOfBoundsException("unexpectable"))
-        val interruptionExit: Exit[Nothing, Nothing] = Exit.interrupt
       }
     }
   }
