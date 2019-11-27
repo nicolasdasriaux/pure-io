@@ -27,7 +27,7 @@ object GuessNumberAppSpec extends DefaultRunnableSpec({
     ),
 
     suite("Get Int between")(
-      testM("succeed when number in range") {
+      testM("should succeed when number in range") {
         for {
           _ <- TestConsole.feedLines("15")
           n <- GuessNumberApp.getIntBetween(1, 20)

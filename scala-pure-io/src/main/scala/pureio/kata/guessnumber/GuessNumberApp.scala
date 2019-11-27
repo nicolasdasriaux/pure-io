@@ -1,7 +1,5 @@
 package pureio.kata.guessnumber
 
-import java.io.IOException
-
 import zio._
 import zio.console.Console
 import zio.random.Random
@@ -9,24 +7,21 @@ import zio.random.Random
 import scala.util._
 
 object GuessNumberApp extends App {
-  override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = game.fold(_ => 1, _ => 0)
+  override def run(args: List[String]): ZIO[Random with Console, Nothing, Int] = game.as(0)
 
-  def parseInt(s: String): Either[NumberFormatException, Int] = Try(s.toInt).toEither.left.map({ case ex: NumberFormatException => ex})
+  def randomNumber: ZIO[Random, Nothing, Int] =
+    random.nextInt(20).map(_ + 1)
 
-  val getInt: ZIO[Console, NumberFormatException, Int] =
-    console.getStrLn.orDie
-      .flatMap(s => ZIO.fromEither(parseInt(s)))
+  def getGuess: ZIO[Console, Nothing, Int] =
+    getIntBetween(1, 20).retry(Schedule.forever).orDie
 
-  def getIntBetween(min: Int, max: Int): ZIO[Console, NumberFormatException, Int] =
-    getInt.filterOrElse(n => min <= n && n <= max)(n => ZIO.fail(new NumberFormatException(s"Number not between $min and $max ($n)")))
-
-  def game: ZIO[Console with Random, IOException, Unit] = for {
+  def game: ZIO[Console with Random, Nothing, Unit] = for {
     _ <- console.putStrLn("Guess a number between 1 and 20.")
-    number <- generateRandomNumber
+    number <- randomNumber
     _ <- guessLoop(number, 1)
   } yield ()
 
-  def guessLoop(number: Int, attempt: Int): ZIO[Console, IOException, Unit] = for {
+  def guessLoop(number: Int, attempt: Int): ZIO[Console, Nothing, Unit] = for {
     _ <- console.putStr(s"Attempt $attempt > ")
     guess <- getGuess
 
@@ -41,8 +36,12 @@ object GuessNumberApp extends App {
     _ <- if (won) ZIO.unit else guessLoop(number, attempt + 1)
   } yield ()
 
-  def generateRandomNumber: ZIO[Random, Nothing, Int] = random.nextInt(20).map(_ + 1)
+  def parseInt(s: String): Either[NumberFormatException, Int] = Try(s.toInt).toEither.left.map({ case ex: NumberFormatException => ex })
 
-  def getGuess: ZIO[Console, Nothing, Int] =
-    getIntBetween(1, 20).retry(Schedule.forever).orDie
+  val getInt: ZIO[Console, NumberFormatException, Int] =
+    console.getStrLn.orDie
+      .flatMap(s => ZIO.fromEither(parseInt(s)))
+
+  def getIntBetween(min: Int, max: Int): ZIO[Console, NumberFormatException, Int] =
+    getInt.filterOrElse(n => min <= n && n <= max)(n => ZIO.fail(new NumberFormatException(s"Number not between $min and $max ($n)")))
 }
