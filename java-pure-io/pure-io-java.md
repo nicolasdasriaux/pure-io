@@ -65,7 +65,7 @@ public class Console {
 
 ```java
 public class ConsoleApp {
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         putStrLn("What's player 1 name?");
         final String player1 = getStrLn();
         putStrLn("What's player 2 name?");
@@ -89,7 +89,7 @@ Players are Paul and Mary.
 
 ```java
 public class BrokenExtractVariableConsoleApp {
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         final String s = getStrLn();
         putStrLn("What's player 1 name?");
         final String player1 = s;
@@ -113,7 +113,7 @@ Players are Paul and Paul.
 
 ```java
 public class BrokenInlineVariableConsoleApp {
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         putStrLn("What's player 1 name?");
         putStrLn("What's player 2 name?");
         final String player2 = getStrLn();
@@ -265,7 +265,7 @@ public class ConsoleApp {
                 });
             });
     
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         final Program<Unit> program = helloApp;
     }
 }
@@ -278,14 +278,14 @@ public class ConsoleApp {
 ```java
 public class ConsoleApp {
     // ...
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         final Program<Unit> program = helloApp;
         System.out.println(program);
     }
 }
 ```
 
-* Will print something like `Program{unsafeAction=pureio.console.pure.Program$$Lambda$3/511754216@5197848c}`
+* Will print something like `Program{unsafeAction=pureio.presentation.console.pure.Program$$Lambda$3/511754216@5197848c}`
 * This is just an **immutable object**, it does no side-effect, it's **pure** :innocent:. 
 * Need an **interpreter** to run!
 
@@ -311,7 +311,7 @@ public abstract class Program<A> {
 ```java
 public class ConsoleApp {
     // PURE ...
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         final Program<Unit> program = helloApp; // PURE
         Program.unsafeRun(program); // IMPURE!!! But that's OK!
     }

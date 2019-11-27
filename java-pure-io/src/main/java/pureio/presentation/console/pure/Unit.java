@@ -1,4 +1,4 @@
-package pureio.console.purefree;
+package pureio.presentation.console.pure;
 
 import org.immutables.value.Value;
 

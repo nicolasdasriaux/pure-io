@@ -1,9 +1,9 @@
-package pureio.console.impure;
+package pureio.presentation.console.impure;
 
-import static pureio.console.impure.Console.*;
+import static pureio.presentation.console.impure.Console.*;
 
 public class ConsoleApp {
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         putStrLn("What's player 1 name?");
         final String player1 = getStrLn();
         putStrLn("What's player 2 name?");

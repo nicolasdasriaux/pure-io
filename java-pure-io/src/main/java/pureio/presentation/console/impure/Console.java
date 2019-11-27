@@ -1,4 +1,4 @@
-package pureio.console.impure;
+package pureio.presentation.console.impure;
 
 import java.util.Scanner;
 

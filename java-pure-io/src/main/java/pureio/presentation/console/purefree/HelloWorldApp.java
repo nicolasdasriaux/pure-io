@@ -1,7 +1,7 @@
-package pureio.console.purefree;
+package pureio.presentation.console.purefree;
 
-import static pureio.console.purefree.Console.getStrLn;
-import static pureio.console.purefree.Console.putStrLn;
+import static pureio.presentation.console.purefree.Console.getStrLn;
+import static pureio.presentation.console.purefree.Console.putStrLn;
 
 @SuppressWarnings({"CodeBlock2Expr", "WeakerAccess", "Convert2MethodRef", "Duplicates"})
 public class HelloWorldApp {
@@ -12,7 +12,7 @@ public class HelloWorldApp {
                 });
             });
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         final Program<Unit> program = helloApp;
         // PURE, anything above done by creating and combining programs
         Program.unsafeRun(program); // IMPURE, only at the Edge of the World

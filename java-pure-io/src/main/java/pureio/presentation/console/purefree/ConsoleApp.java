@@ -1,9 +1,9 @@
-package pureio.console.purefree;
+package pureio.presentation.console.purefree;
 
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 
-import static pureio.console.purefree.Console.*;
+import static pureio.presentation.console.purefree.Console.*;
 
 @SuppressWarnings({"CodeBlock2Expr", "WeakerAccess", "Convert2MethodRef", "Duplicates"})
 public class ConsoleApp {
@@ -90,7 +90,7 @@ public class ConsoleApp {
         });
     }
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         final Program<Unit> program = mainApp();
         Program.unsafeRun(program);
     }
