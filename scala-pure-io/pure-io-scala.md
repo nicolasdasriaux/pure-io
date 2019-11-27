@@ -236,9 +236,7 @@ def getStrLn: IO[IOException, String] = {
   // and fail with the exception (not thrown)
   // or die in case of any other exception.
   IO.effect(/* () => */ StdIn.readLine()) /* IO[Throwable, String] */
-    .refineOrDie {
-      case e: IOException => e
-    }
+    .refineToOrDie[IOException]
 }
 ```
 

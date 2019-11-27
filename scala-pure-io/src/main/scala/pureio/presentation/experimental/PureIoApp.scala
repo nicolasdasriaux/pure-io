@@ -1,4 +1,4 @@
-package pureio.presentation
+package pureio.presentation.experimental
 
 import java.io.IOException
 
@@ -9,7 +9,7 @@ import scala.util.{Random, Try}
 
 object PureIoApp extends App {
   def run(args: List[String]): ZIO[Console, Nothing, Int] = {
-    menu.either.map(_.fold(_ => 1, _ => 0))
+    menu.fold(_ => 1, _ => 0)
   }
 
   val displayMenu: ZIO[Console, Nothing, Unit] =
