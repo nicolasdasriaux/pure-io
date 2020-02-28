@@ -36,7 +36,12 @@ object GuessNumberApp extends App {
     _ <- if (won) ZIO.unit else guessLoop(number, attempt + 1)
   } yield ()
 
-  def parseInt(s: String): Either[NumberFormatException, Int] = Try(s.toInt).toEither.left.map({ case ex: NumberFormatException => ex })
+  def parseInt(s: String): Either[NumberFormatException, Int] =
+    Try(s.toInt).toEither
+      .left.map {
+        case ex: NumberFormatException => ex
+        case ex => throw ex
+      }
 
   val getInt: ZIO[Console, NumberFormatException, Int] =
     console.getStrLn.orDie

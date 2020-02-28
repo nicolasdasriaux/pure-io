@@ -23,5 +23,5 @@ lazy val root = (project in file("."))
       "dev.zio" %% "zio-test-sbt" % zioVersion.value % Test
     ),
 
-    testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
+    testFrameworks := Seq(TestFramework("zio.test.sbt.ZTestFramework"))
   )
