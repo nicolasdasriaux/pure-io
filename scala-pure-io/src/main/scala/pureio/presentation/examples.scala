@@ -2,8 +2,8 @@ package pureio.presentation.examples {
   import pureio.presentation.examples.sync.Main._
   import zio._
   import zio.duration._
+  import Runtime.{default => RTS}
 
-  object RTS extends DefaultRuntime
   case class Point(x: Int, y: Int)
 
   package basic {
@@ -491,7 +491,7 @@ package pureio.presentation.examples {
     import zio.clock.Clock
 
     object Main {
-      val analyze: IO[Nothing, String] = IO.succeed("Analysis").delay(1.second).provide(Clock.Live)
+      val analyze: IO[Nothing, String] = IO.succeed("Analysis").delay(1.second).provideLayer(Clock.live)
       val validate: IO[Nothing, Boolean] = IO.succeed(false)
 
       val program: IO[Nothing, String] =
@@ -521,7 +521,7 @@ package pureio.presentation.examples {
       import zio.system.System
 
       val program: ZIO[System with Clock with Random with Console, Throwable, Unit] = for {
-        randomNumber <- random.nextInt(10)
+        randomNumber <- random.nextIntBetween(1, 10)
         maybeJavaVersion <- system.property("java.version")
         millisSinceEpoch <- clock.currentTime(TimeUnit.MILLISECONDS)
 

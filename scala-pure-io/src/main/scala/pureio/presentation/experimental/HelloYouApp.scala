@@ -1,13 +1,12 @@
 package pureio.presentation.experimental
 
 import java.io.IOException
-
 import zio.console._
-import zio.{App, ZIO}
+import zio.{App, ExitCode, ZIO}
 
 class HelloYouApp extends App {
-  def run(args: List[String]): ZIO[Console, Nothing, Int] = {
-    helloWorld.either.map(_.fold(_ => 1, _ => 0))
+  def run(args: List[String]): ZIO[Console, Nothing, ExitCode] = {
+    helloWorld.exitCode
   }
 
   def helloWorld: ZIO[Console, IOException, Unit] = {

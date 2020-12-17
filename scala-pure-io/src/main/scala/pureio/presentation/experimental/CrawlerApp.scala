@@ -1,6 +1,6 @@
 package pureio.presentation.experimental
 
-import zio.{App, IO, Queue}
+import zio.{App, ExitCode, IO, Queue}
 
 object CrawlerApp extends App {
   def putStrLn(line: String): IO[Nothing, Unit] = IO.effectTotal(Console.println(line))
@@ -36,7 +36,7 @@ object CrawlerApp extends App {
     _ <- workerQueue.awaitShutdown
   } yield ()
 
-  override def run(args: List[String]): IO[Nothing, Int] = {
-    program.as(1)
+  override def run(args: List[String]): IO[Nothing, ExitCode] = {
+    program.as(ExitCode.success)
   }
 }

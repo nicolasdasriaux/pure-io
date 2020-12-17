@@ -14,8 +14,8 @@ import zio.random.Random
 case class StopError(message: String) extends Exception
 
 object AsyncIoApp extends App {
-  def run(args: List[String]): ZIO[Console with Clock with Random, Nothing, Int] = {
-    async.fold(_ => 1, _ => 0)
+  def run(args: List[String]): ZIO[Console with Clock with Random, Nothing, ExitCode] = {
+    async.exitCode
   }
 
   val async: ZIO[Console with Clock with Random, IOException, Unit] = {
@@ -29,7 +29,7 @@ object AsyncIoApp extends App {
       name <- nameFiber.await.flatMap(exitResult => ZIO.done(exitResult.fold({ case Interrupt(_) => Exit.succeed(None); case cause => Exit.halt(cause) }, name => Exit.succeed(Some(name)))))
       _ <- putStrLn(s"Name for $id is $name")
 
-      _ <- File.printAllLines(Paths.get("/Users/axa/Development/presentations/pure-io/build.sbt")).race(ZIO.sleep(5.seconds))
+      _ <- File.printAllLines(Paths.get("/Users/nicolasdasriaux/Development/presentations/pure-io/scala-pure-io/build.sbt")).race(ZIO.sleep(5.seconds))
 
       namesFiber <- getNames.fork
       _ <- namesFiber.interrupt.delay(2.seconds).fork
@@ -45,7 +45,7 @@ object NameService {
   def getName(id: Int): ZIO[Console with Clock with Random, Nothing, String] = {
     val everySecond = Schedule.spaced(1.second)
     val ticks = Schedule.forever.map(tick => s"Tick #$tick for $id")
-    val log = Schedule.tapInput(putStrLn)
+    val log = Schedule.identity[String].tapInput[Console, String](line => putStrLn(line))
     val ticker = IO.unit.repeat(ticks >>> log <* everySecond)
 
     val task: ZIO[Console with Clock, Nothing, String] =
@@ -99,9 +99,9 @@ object File {
   }
 
   def printAllLines(path: Path): ZIO[Console with Clock with Random, IOException, List[String]] = {
-    val collectLines = Schedule.collectAll[Option[String]].map(_.flatten)
+    val collectLines = Schedule.collectAll[Option[String]].map(_.flatMap(_.toSeq).toList)
     val everySecondJittered = Schedule.spaced(500.millis)
-    val untilEof = Schedule.doUntil[Option[String]](_.isEmpty)
+    val untilEof = Schedule.identity[Option[String]].untilOutput(_.isEmpty)
 
     val value: Schedule[Clock, Option[String], List[String]] = collectLines <* everySecondJittered <* untilEof
 

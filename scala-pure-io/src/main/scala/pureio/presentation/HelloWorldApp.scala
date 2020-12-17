@@ -1,6 +1,6 @@
 package pureio.presentation
 
-import zio.{App, IO}
+import zio.{App, ExitCode, IO}
 
 object HelloWorldApp extends App {
   // Wraps synchronous (blocking) side-effecting code in an IO
@@ -8,7 +8,7 @@ object HelloWorldApp extends App {
     IO.effectTotal(/* () => */ Console.println("Hello World!"))
     // The IO just holds a lambda but does not run it for now.
 
-  def run(args: List[String]): IO[Nothing, Int] = {
-    helloWorld.as(0)
+  def run(args: List[String]): IO[Nothing, ExitCode] = {
+    helloWorld.as(ExitCode.success)
   }
 }

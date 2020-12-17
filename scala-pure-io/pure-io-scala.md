@@ -119,10 +119,10 @@ object HelloWorldApp extends App {
   // Wraps synchronous (blocking) side-effecting code in an IO
   val helloWorld: IO[Nothing, Unit] =
     IO.effectTotal(/* () => */ Console.println("Hello World!"))
-    // The IO just holds a lambda but does not run it for now.
+  // The IO just holds a lambda but does not run it for now.
 
-  def run(args: List[String]): IO[Nothing, Int] = {
-    helloWorld.as(0)
+  def run(args: List[String]): IO[Nothing, ExitCode] = {
+    helloWorld.as(ExitCode.success)
   }
 }
 ```
@@ -623,7 +623,7 @@ type IO[+E, +A] = ZIO[Any, E, A]
 
 ```scala
 val program: ZIO[System with Clock with Random with Console, Throwable, Unit] = for {
-  randomNumber <- random.nextInt(10)
+  randomNumber <- random.nextIntBetween(1, 10)
   maybeJavaVersion <- system.property("java.version")
   millisSinceEpoch <- clock.currentTime(TimeUnit.MILLISECONDS)
 
@@ -647,21 +647,18 @@ val program: ZIO[System with Clock with Random with Console, Throwable, Unit] = 
   - No error is lost
   - Concurrent errors are kept
   - No need to mindlessly log exceptions
-  
-* **Full Stack Traces**
-  - Across _fibers_ and _threads_
+  - **Full stack traces** across _fibers_ and _threads_
 
 ---
 
 # Loaded with Features
 
+* **Resources** and **Dependency Injection**
+  - `Managed` to describe a **resource** that may be consumed only once in a given scope
+  - `Zlayer` and `Has` to describe **layers** and dependencies between layers
 * **Streaming**
-  - `Stream`, a lazy, concurrent, asynchronous source of values
-  - `Sink`, a consumer of values, which may produces a value when it has consumed enough
+  - `ZStream`, a lazy, concurrent, asynchronous source of values
+  - `ZSink`, a consumer of values, which may produces a value when it has consumed enough
 * **Software Transactional Memory** (STM)
 * **Low Level Concurrency**
-  * `FiberLocal`, `FiberRef`, a variable whose value depends on the fiber that accesses it
-  * `Promise`, a variable that may be set a single time, and awaited on by many fibers
-  * `Queue`, an asynchronous queue that never blocks
-  * `Ref`, a mutable reference to a value
-  * `Semaphore`, a semaphore
+  * `Ref`, `FiberRef`, `Promise`, `Queue`, `Semaphore`...

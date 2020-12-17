@@ -1,15 +1,14 @@
 package pureio.presentation.experimental
 
 import java.io.IOException
-
 import zio.console.{Console, getStrLn, putStrLn}
-import zio.{App, IO, ZIO}
+import zio.{App, ExitCode, IO, ZIO}
 
 import scala.util.{Random, Try}
 
 object PureIoApp extends App {
-  def run(args: List[String]): ZIO[Console, Nothing, Int] = {
-    menu.fold(_ => 1, _ => 0)
+  def run(args: List[String]): ZIO[Console, Nothing, ExitCode] = {
+    menu.exitCode
   }
 
   val displayMenu: ZIO[Console, Nothing, Unit] =

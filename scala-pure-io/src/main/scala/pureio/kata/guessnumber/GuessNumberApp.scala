@@ -1,19 +1,20 @@
 package pureio.kata.guessnumber
 
 import zio._
+import zio.clock.Clock
 import zio.console.Console
 import zio.random.Random
 
 import scala.util._
 
 object GuessNumberApp extends App {
-  override def run(args: List[String]): ZIO[Random with Console, Nothing, Int] = game.as(0)
+  override def run(args: List[String]): ZIO[Random with Console, Nothing, ExitCode] = game.as(ExitCode.success)
 
   def randomNumber: ZIO[Random, Nothing, Int] =
-    random.nextInt(20).map(_ + 1)
+    random.nextIntBetween(1, 20)
 
   def getGuess: ZIO[Console, Nothing, Int] =
-    getIntBetween(1, 20).retry(Schedule.forever).orDie
+    getIntBetween(1, 20).retry(Schedule.forever).provideSomeLayer[Console](Clock.live).orDie
 
   def game: ZIO[Console with Random, Nothing, Unit] = for {
     _ <- console.putStrLn("Guess a number between 1 and 20.")

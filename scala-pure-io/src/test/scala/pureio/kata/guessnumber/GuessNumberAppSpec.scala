@@ -2,18 +2,17 @@ package pureio.kata.guessnumber
 
 import zio.test.Assertion._
 import zio.test._
-import zio.test.environment.{TestConsole, TestRandom}
+import zio.test.environment._
 
-object GuessNumberAppSpec extends DefaultRunnableSpec({
+object GuessNumberAppSpec extends DefaultRunnableSpec {
   def hasExceptionMessage(message: String): Assertion[Exception] = hasField("getMessage", (ex: Exception) => ex.getMessage, equalTo(message))
-
-  suite("Guess a number")(
+  override def spec: ZSpec[TestEnvironment, Any] = suite("Guess a number")(
     suite("Get Int")(
       testM("should succeed when proper integer string") {
         for {
           _ <- TestConsole.feedLines("42")
           n <- GuessNumberApp.getInt
-        } yield assert(n, equalTo(42))
+        } yield assert(n)(equalTo(42))
       },
 
       testM("should fail when invalid integer string") {
@@ -22,7 +21,7 @@ object GuessNumberAppSpec extends DefaultRunnableSpec({
           n <- GuessNumberApp.getInt
         } yield n
 
-        assertM(io.either, isLeft(hasExceptionMessage("""For input string: "abc"""")))
+        assertM(io.either)( isLeft(hasExceptionMessage("""For input string: "abc"""")))
       }
     ),
 
@@ -31,7 +30,7 @@ object GuessNumberAppSpec extends DefaultRunnableSpec({
         for {
           _ <- TestConsole.feedLines("15")
           n <- GuessNumberApp.getIntBetween(1, 20)
-        } yield assert(n, equalTo(15))
+        } yield assert(n)(equalTo(15))
       },
 
       testM("should fail when number out of range") {
@@ -40,18 +39,18 @@ object GuessNumberAppSpec extends DefaultRunnableSpec({
           n <- GuessNumberApp.getIntBetween(1, 20)
         } yield n
 
-        assertM(io.either, isLeft(hasExceptionMessage("""Number not between 1 and 20 (42)""")))
+        assertM(io.either)(isLeft(hasExceptionMessage("""Number not between 1 and 20 (42)""")))
       }
     ),
 
     suite("Game")(
       testM("should handle a full game session") {
         for {
-          _ <- TestRandom.feedInts(11)
+          _ <- TestRandom.feedInts(12)
           _ <- TestConsole.feedLines("1", "20", "10", "15", "12")
           _ <- GuessNumberApp.game
           output <- TestConsole.output
-        } yield assert(output, equalTo(
+        } yield assert(output)(equalTo(
           Seq(
             "Guess a number between 1 and 20.\n",
             "Attempt 1 > ",
@@ -69,4 +68,4 @@ object GuessNumberAppSpec extends DefaultRunnableSpec({
       }
     )
   )
-})
+}

@@ -7,8 +7,8 @@ import zio._
 import zio.duration._
 
 object FiberApp extends App {
-  def run(args: List[String]): ZIO[Clock with Console, Nothing, Int] =
-    program.as(0)
+  def run(args: List[String]): ZIO[Clock with Console, Nothing, ExitCode] =
+    program.exitCode
 
   def program: ZIO[Console with Clock, Nothing, Unit] = {
     val a: ZIO[Clock with Random with Console, Nothing, Unit] =
@@ -32,14 +32,14 @@ object FiberApp extends App {
       IO.unit
         .repeat(
           (Schedule.spaced(500.millis) *> Schedule.recurs(5))
-            .tapOutput(i => queue.offer(i).unit)
+            .tapOutput(i => queue.offer(i.toInt).unit)
             andThen Schedule.succeed(0).tapOutput(i => queue.offer(i).unit)
         )
 
     def take(queue: Queue[Int]): ZIO[Clock with Console, Nothing, Int] =
       queue.take
         .tap(v => putStrLn(s"v=$v"))
-        .repeat(Schedule.doUntil(_ == 0))
+        .repeat(Schedule.identity.untilOutput(_ == 0))
 
     for {
       queue <- Queue.bounded[Int](5)
